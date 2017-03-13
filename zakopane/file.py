@@ -4,32 +4,65 @@ Defines the files used for zakopane.
 
 
 import zakopane
+import datetime
+import functools
+import os
 
-METASEP = "=" * 52
-METAKVSEP = ":"
+METASEP =       "=" * 52
+METAKVSEP =     ": "
 
 
+def newSumFile(fname):
+    return SumFile(fname, reading=False)
+
+
+@functools.total_ordering
 class SumFile(object):
     """
     A representation of the file used for storing off checksum info.
+
+    This shall behave like a glorified dictionary.
     """
 
-    def __init__(self, fileName, existing=True):
-        self._slurp = None
+    def __init__(self, fileName, reading=True):
+        self._slurp =           None
+        self._meta =            None
+        self._sumDict =         None
+        self.when =             datetime.datetime.utcnow().timestamp()
+        self.root =             None
 
         # If we are reading an existing db, set things up.
-        if existing:
+        if reading:
             with open(fileName, "r") as fObj:
-                slurp = [l.strip() for l in fObj.readlines()]
+                slurp = list()
+                for line in fObj:
+                    slurp.append(line.strip())
                 if zakopane.DEBUG:
                     self._slurp = slurp
 
+            (pickupIndex, meta) = self._readMeta(slurp)
+            self._meta = meta
+            self._getMeta(meta)
+            self._sumDict = self._getSums(pickupIndex, slurp)
+
         # Otherwise, we're creating a new db; set things up differently.
         else:
-            pass
+            raise NotImplementedError("Can't write SumFiles yet.")
+
+    def __getitem__(self, key):
+        return self._sumDict[key]
+
+    def __contains__(self, key):
+        return key in self._sumDict
+
+    def __lt__(self, other):
+        return self.when < other.when
+
+    def __eq__(self, other):
+        return self.when == other.when
 
     @staticmethod
-    def readMeta(slurp):
+    def _readMeta(slurp):
         """
         Reads metadata stored in the checksum file. By fiat I decree that
         this shall all be at the top of the file. It will be opened by
@@ -64,3 +97,29 @@ class SumFile(object):
             metaDict[key] = val
 
         return (pickupIndex, metaDict)
+
+    def _getMeta(self, metaDict):
+        """
+        Sets the required metadata in this object. Currently, that's only
+        the write date and the root at which the checksum walk begins.
+
+        All other metadata in the metaDict is ignored for now.
+        """
+        self.when = float(metaDict["When"])
+        self.root = os.path.normpath(metaDict("Root"))
+
+    def _getSums(self, pickupIndex, slurp):
+        """
+        Given a total slurp (including metadata at the head) and a pickup
+        index, read in everything at and after the pickup index and parse
+        it as a series of checksumming specs. Return the result as a dict.
+        """
+        sumDict = dict()
+        i = pickupIndex
+
+        while i < len(slurp):
+            line = slurp[i]
+            (fname, fhash) = zakopane.readHashLine(line)
+            self._sumDict[fname] = fhash
+            i += 1
+
