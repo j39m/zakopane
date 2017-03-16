@@ -11,9 +11,12 @@ import os
 METASEP =       "=" * 52
 METAKVSEP =     ": "
 
+ROOT = "Root"
+WHEN = "When"
 
-def newSumFile(fname):
-    return SumFile(fname, reading=False)
+
+def newSumFile(froot):
+    return SumFile(None, root=froot, reading=False)
 
 
 @functools.total_ordering
@@ -24,7 +27,7 @@ class SumFile(object):
     This shall behave like a glorified dictionary.
     """
 
-    def __init__(self, fileName, reading=True):
+    def __init__(self, fileName, reading=True, **kwargs):
         self._slurp =           None
         self._meta =            None
         self._sumDict =         None
@@ -48,6 +51,7 @@ class SumFile(object):
         # Otherwise, we're creating a new db; set things up differently.
         else:
             raise NotImplementedError("Can't write SumFiles yet.")
+            self.root = kwargs[ROOT]
 
     def __getitem__(self, key):
         return self._sumDict[key]
@@ -105,8 +109,8 @@ class SumFile(object):
 
         All other metadata in the metaDict is ignored for now.
         """
-        self.when = float(metaDict["When"])
-        self.root = os.path.normpath(metaDict("Root"))
+        self.when = float(metaDict[WHEN])
+        self.root = os.path.normpath(metaDict[ROOT])
 
     def _getSums(self, pickupIndex, slurp):
         """
