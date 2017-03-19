@@ -10,7 +10,7 @@ FREADTO = (-HASHLEN - len(HASHSEP))
 
 def readHashLine(line):
     """
-    Given a line formatted exactly as "<filename> <hash>" (single space as
+    Given a line formatted exactly as "<hash> <filename>" (HASHSEP as
     separator, NO trailing or leading characters - especially not
     whitespace), return the filename and hash together as a tuple.
     """
