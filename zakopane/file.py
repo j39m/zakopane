@@ -127,13 +127,26 @@ class SumFile(object):
             self._sumDict[fname] = fhash
             i += 1
 
+
 class ConfigFile(object):
     """
     Represents the configuration file we use.
     Currently, its sole purpose is to map configured digest paths to the
     individual SumFile names (or at least their prefixes).
     """
-    cfg_fname = xdg.BaseDirectory.xdg_config_home
-    ddb_fname = xdg.BaseDirectory.xdg_data_home
+    ddbDir = zakopane.npj(
+        xdg.BaseDirectory.xdg_data_home,
+        zakopane.NAME,
+    )
+    cfgDir = zakopane.npj(
+        xdg.BaseDirectory.xdg_config_home,
+        zakopane.NAME,
+    )
+    cfgFname = zakopane.npj(
+        cfgDir,
+        "dbmap",
+    )
     def __init__(self):
-        pass
+        for d in (self.ddbDir, self.cfgDir):
+            if not os.path.isdir(d):
+                os.mkdir(d)

@@ -3,6 +3,7 @@ import os
 
 version = (0, 0, 1)
 
+NAME = "zakopane"
 DEBUG = False
 
 
