@@ -7,6 +7,7 @@ import zakopane
 import datetime
 import functools
 import os
+import xdg.BaseDirectory
 
 METASEP =       "=" * 52
 METAKVSEP =     ": "
@@ -126,3 +127,13 @@ class SumFile(object):
             self._sumDict[fname] = fhash
             i += 1
 
+class ConfigFile(object):
+    """
+    Represents the configuration file we use.
+    Currently, its sole purpose is to map configured digest paths to the
+    individual SumFile names (or at least their prefixes).
+    """
+    cfg_fname = xdg.BaseDirectory.xdg_config_home
+    ddb_fname = xdg.BaseDirectory.xdg_data_home
+    def __init__(self):
+        pass
