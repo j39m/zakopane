@@ -16,7 +16,7 @@ WHEN = "When"
 
 
 def newSumFile(froot):
-    return SumFile(None, root=froot, reading=False)
+    return SumFile(froot, reading=False)
 
 
 @functools.total_ordering
@@ -32,11 +32,11 @@ class SumFile(object):
         self._meta =            None
         self._sumDict =         None
         self.when =             datetime.datetime.utcnow().timestamp()
-        self.root =             None
+        self.root =             fileName
 
         # If we are reading an existing db, set things up.
         if reading:
-            with open(fileName, "r") as fObj:
+            with open(self.root, "r") as fObj:
                 slurp = list()
                 for line in fObj:
                     slurp.append(line.strip())
@@ -51,7 +51,6 @@ class SumFile(object):
         # Otherwise, we're creating a new db; set things up differently.
         else:
             raise NotImplementedError("Can't write SumFiles yet.")
-            self.root = kwargs[ROOT]
 
     def __getitem__(self, key):
         return self._sumDict[key]
