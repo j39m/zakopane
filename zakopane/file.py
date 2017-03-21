@@ -6,7 +6,9 @@ Defines the files used for zakopane.
 import zakopane
 import datetime
 import functools
+import json
 import os
+import uuid
 import xdg.BaseDirectory
 
 METASEP =       "=" * 52
@@ -128,9 +130,9 @@ class SumFile(object):
             i += 1
 
 
-class ConfigFile(object):
+class DbMapFile(object):
     """
-    Represents the configuration file we use.
+    Represents the database map file we use.
     Currently, its sole purpose is to map configured digest paths to the
     individual SumFile names (or at least their prefixes).
     """
@@ -142,11 +144,64 @@ class ConfigFile(object):
         xdg.BaseDirectory.xdg_config_home,
         zakopane.NAME,
     )
+
     cfgFname = zakopane.npj(
         cfgDir,
-        "dbmap",
+        "zakopane.conf",
+    )
+    dbMapFname = zakopane.npj(
+        ddbDir,
+        "ddbmap",
     )
     def __init__(self):
+        self.dbMap = None
+        self.dbValues = None
         for d in (self.ddbDir, self.cfgDir):
             if not os.path.isdir(d):
                 os.mkdir(d)
+
+        try:
+            with open(self.dbMapFname, "r") as dbMapFile:
+                self.dbMap = json.load(dbMapFile)
+                self.dbValues = set(self.dbMap.values())
+        except (IOError, OSError):
+            self.dbMap = dict()
+            self.dbValues = set()
+
+    def __getitem__(self, key):
+        return self.dbMap[key]
+
+    def __contains__(self, key):
+        return key in self.dbMap
+
+    def __setitem__(self, key, value):
+        if key in self.dbMap:
+            raise KeyError("key %s already in dbMap!" % key)
+        if value in self.dbValues:
+            raise KeyError("value %s already in dbMap!" % value)
+        self.dbMap[key] = value
+        self.dbValues.add(value)
+
+    def dryAddKeyValue(self, key, value):
+        """
+        Returns 0 iff key not in dbMap and value not mapped to.
+        Use this to verify that you can safely add the key/value pair.
+        Alternatively, call add(key) for guaranteed (???) safety.
+        """
+        rv = 0
+        if key in self.dbMap:
+            rv += 1
+        if value in self.dbValues:
+            rv += 2
+        return rv
+
+    def add(self, key):
+        """Use a uuid to provide safety in adding."""
+        value = str(uuid.uuid4())
+        self.__setitem__(key, value)
+
+    def commit(self):
+        with open(self.dbMapFname, "w") as dbMapFile:
+            json.dump(self.dbMap, dbMapFile)
+        return 0
+
