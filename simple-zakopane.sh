@@ -13,7 +13,7 @@ CHECKSUMMER="/usr/bin/sha256sum"
 EXECNAME=$(basename "$0");
 
 SUFFIX_FIN="sums"
-NOW="$(date -u +%s)"
+NOW="$(date -u "+%Y-%m-%d-%H%M%S")"
 FILE_FIN="$NOW"."$SUFFIX_FIN"
 
 
