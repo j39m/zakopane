@@ -7,14 +7,16 @@ set -u  # use strict; use warnings
 # This is way easier than writing all the Python skullduggery. It is bad
 # and wrong in many ways, but it will do.
 
-CHECKABLE="$1";
+CHECKABLE="$(realpath "$1")";
 CHECKSUMMER="/usr/bin/sha256sum"
 
 EXECNAME=$(basename "$0");
 
-SUFFIX_FIN="sums"
-NOW="$(date -u "+%Y-%m-%d-%H%M%S")"
-FILE_FIN="$NOW"."$SUFFIX_FIN"
+SUFFIX_TMP="tmp";
+SUFFIX_FIN="sums";
+NOW="$(date -u "+%Y-%m-%d-%H%M%S")";
+FILE_TMP="$NOW"."$SUFFIX_TMP";
+FILE_FIN="$NOW"."$SUFFIX_FIN";
 
 
 # Log a message.
@@ -38,9 +40,21 @@ findAndSum() {
 
 # The main function.
 main() {
+    fileExistsAbort "$FILE_TMP";
     fileExistsAbort "$FILE_FIN";
-    findAndSum > "$FILE_FIN";
-    sort -o "$FILE_FIN" -k2 "$FILE_FIN";
+
+    # Write the file header.
+    whine "$NOW" > "$FILE_FIN";
+    whine "$CHECKABLE" >> "$FILE_FIN";
+    printf "\n" >> "$FILE_FIN";
+
+    # Write the initial pass.
+    findAndSum > "$FILE_TMP";
+
+    # Finalize the checksum results.
+    sort -k2 "$FILE_TMP" >> "$FILE_FIN";
+    rm -f "$FILE_TMP";
+
     whine "Wrote ""$FILE_FIN"".";
     return 0;
 }
