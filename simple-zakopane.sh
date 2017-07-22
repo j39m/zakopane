@@ -33,7 +33,7 @@ fileExistsAbort() {
 # Run the traversal / checksumming routine using -exec.
 findAndSum() {
     pushd "$CHECKABLE" 1>/dev/null;
-    find . -type f -exec "$CHECKSUMMER" {} "+";
+    find . -path "*/.*" -prune -o -type f -exec "$CHECKSUMMER" {} "+";
     popd 1>/dev/null;
 }
 
