@@ -37,13 +37,8 @@ def dictify_zf(fname):
 
 def print_diff(dba, dbb):
     """Given 2 dictified zakopane dbs, print their difference."""
-    diff = list()
-
-    for (key, val) in dba.items():
-        try:
-            diff.append(key) if dbb[key] != val else None
-        except KeyError:
-            continue
+    diff = [key for (key, val) in dba.items()
+        if key in dbb and dbb[key] != val]
 
     diff.sort()
     for fname in diff:
