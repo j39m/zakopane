@@ -88,7 +88,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bare_noadd() {
+    fn test_policy_bare_noadd() {
         let policy: i32 = match policy_repr_as_int(&"noadd") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -97,7 +97,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bare_nodelete() {
+    fn test_policy_bare_nodelete() {
         let policy: i32 = match policy_repr_as_int(&"nodelete") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -106,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bare_nomodify() {
+    fn test_policy_bare_nomodify() {
         let policy: i32 = match policy_repr_as_int(&"nomodify") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -115,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn test_combo_policy() {
+    fn test_policy_combo() {
         let policy: i32 = match policy_repr_as_int(&"noadd,nodelete") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -124,7 +124,7 @@ mod tests {
     }
 
     #[test]
-    fn test_repetitive_policy() {
+    fn test_policy_repetition() {
         let policy: i32 =
             match policy_repr_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd") {
                 Ok(value) => value,
