@@ -1,0 +1,12 @@
+[package]
+name = "zakocmp"
+version = "0.1.0"
+authors = ["j39m"]
+edition = "2018"
+
+[lib]
+name = "config"
+path = "src/config.rs"
+doctest = true
+
+[dependencies]
