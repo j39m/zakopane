@@ -120,11 +120,11 @@ mod tests {
 
     #[test]
     fn test_repetitive_policy() {
-        let policy: i32 = match policy_repr_as_int(
-                &"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd") {
-            Ok(value) => value,
-            Err(oof) => panic!(oof),
-        };
+        let policy: i32 =
+            match policy_repr_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd") {
+                Ok(value) => value,
+                Err(oof) => panic!(oof),
+            };
         assert!(policy == POLICY_NOADD | POLICY_NODELETE);
     }
 }
