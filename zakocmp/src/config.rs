@@ -8,11 +8,11 @@ use std::result::Result;
 use std::vec::Vec;
 
 // Enumerates the string representations of known policies.
-const POLICY_REPR_IGNORE: &str = "ignore";
-const POLICY_REPR_NOADD: &str = "noadd";
-const POLICY_REPR_NODELETE: &str = "nodelete";
-const POLICY_REPR_NOMODIFY: &str = "nomodify";
-const POLICY_REPR_IMMUTABLE: &str = "immutable";
+const POLICY_REPR_IGNORE: &'static str = "ignore";
+const POLICY_REPR_NOADD: &'static str = "noadd";
+const POLICY_REPR_NODELETE: &'static str = "nodelete";
+const POLICY_REPR_NOMODIFY: &'static str = "nomodify";
+const POLICY_REPR_IMMUTABLE: &'static str = "immutable";
 
 // Represents known policies as integers.
 pub const POLICY_IGNORE: i32 = 0;
