@@ -1,6 +1,8 @@
 // This module defines constants and functions for working with zakocmp
 // configuration files.
 
+extern crate yaml_rust;
+
 use std::io::{Error, ErrorKind};
 use std::result::Result;
 use std::vec::Vec;

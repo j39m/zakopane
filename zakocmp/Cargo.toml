@@ -10,3 +10,4 @@ path = "src/config.rs"
 doctest = true
 
 [dependencies]
+yaml-rust = "0.4"
