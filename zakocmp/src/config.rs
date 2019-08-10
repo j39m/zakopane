@@ -3,6 +3,7 @@
 
 use std::io::{Error, ErrorKind};
 use std::result::Result;
+use std::vec::Vec;
 
 // Enumerates the string representations of known policies.
 const POLICY_REPR_IGNORE: &str = "ignore";
@@ -71,11 +72,13 @@ fn policy_token_as_int(token: &str) -> Result<i32, Error> {
 /// ```
 ///
 pub fn policy_repr_as_int(policy: &str) -> Result<i32, Error> {
-    let mut policy_int: i32 = POLICY_IGNORE;
-    for token in policy.split(",") {
-        policy_int |= policy_token_as_int(token)?;
-    }
-    return Ok(policy_int);
+    let policy_ints: Vec<i32> = policy
+        .split(",")
+        .map(|tok| policy_token_as_int(tok))
+        .collect::<Result<Vec<i32>, Error>>()?;
+    return Ok(policy_ints
+        .iter()
+        .fold(POLICY_IGNORE, |accum, elem| accum | elem));
 }
 
 #[cfg(test)]
