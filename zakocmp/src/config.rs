@@ -48,43 +48,18 @@ fn policy_token_as_int(token: &str) -> Result<i32, Error> {
 ///
 /// ```
 /// # mod zakocmp;
-/// let policy: i32 = config::policy_repr_as_int(&"noadd").unwrap();
-/// assert!(policy == config::POLICY_NOADD);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
-/// let policy: i32 = config::policy_repr_as_int(&"nomodify").unwrap();
-/// assert!(policy == config::POLICY_NOMODIFY);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
-/// let policy: i32 = config::policy_repr_as_int(&"nodelete").unwrap();
-/// assert!(policy == config::POLICY_NODELETE);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
-/// // While it's pointless to repeat oneself,
-/// // it's not invalid to do so.
-/// let policy: i32 = config::policy_repr_as_int(
-///     &"immutable,immutable,immutable").unwrap();
-/// assert!(policy == config::POLICY_IMMUTABLE);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
-/// let policy: i32 = config::policy_repr_as_int(
-///     &"noadd,nodelete,nomodify").unwrap();
-/// assert!(policy == config::POLICY_IMMUTABLE);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
+/// // Multiple policies are bitwise OR'd together.
 /// let policy: i32 = config::policy_repr_as_int(
 ///     &"noadd,nomodify").unwrap();
 /// assert!(policy == config::POLICY_NOADD | config::POLICY_NOMODIFY);
+/// ```
+///
+/// ```
+/// # mod zakocmp;
+/// // The biggest bitwise OR equals POLICY_IMMUTABLE.
+/// let policy: i32 = config::policy_repr_as_int(
+///     &"noadd,nodelete,nomodify").unwrap();
+/// assert!(policy == config::POLICY_IMMUTABLE);
 /// ```
 ///
 /// # Failures
@@ -101,4 +76,55 @@ pub fn policy_repr_as_int(policy: &str) -> Result<i32, Error> {
         policy_int |= policy_token_as_int(token)?;
     }
     return Ok(policy_int);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bare_noadd() {
+        let policy: i32 = match policy_repr_as_int(&"noadd") {
+            Ok(value) => value,
+            Err(oof) => panic!(oof),
+        };
+        assert!(policy == POLICY_NOADD);
+    }
+
+    #[test]
+    fn test_bare_nodelete() {
+        let policy: i32 = match policy_repr_as_int(&"nodelete") {
+            Ok(value) => value,
+            Err(oof) => panic!(oof),
+        };
+        assert!(policy == POLICY_NODELETE);
+    }
+
+    #[test]
+    fn test_bare_nomodify() {
+        let policy: i32 = match policy_repr_as_int(&"nomodify") {
+            Ok(value) => value,
+            Err(oof) => panic!(oof),
+        };
+        assert!(policy == POLICY_NOMODIFY);
+    }
+
+    #[test]
+    fn test_combo_policy() {
+        let policy: i32 = match policy_repr_as_int(&"noadd,nodelete") {
+            Ok(value) => value,
+            Err(oof) => panic!(oof),
+        };
+        assert!(policy == POLICY_NOADD | POLICY_NODELETE);
+    }
+
+    #[test]
+    fn test_repetitive_policy() {
+        let policy: i32 = match policy_repr_as_int(
+                &"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd") {
+            Ok(value) => value,
+            Err(oof) => panic!(oof),
+        };
+        assert!(policy == POLICY_NOADD | POLICY_NODELETE);
+    }
 }
