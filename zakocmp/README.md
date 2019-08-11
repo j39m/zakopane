@@ -14,7 +14,7 @@ zakocmp <config> <before> <after>
 ## The config file
 
 A `zakocmp` config file is a YAML document comprising
-*   at least of a default policy and
+*   at least a default policy and
 *   optionally more specific policies.
 
 ### Policy appendix
@@ -26,6 +26,10 @@ A `zakocmp` config file is a YAML document comprising
 1.  `nodelete` tells `zakocmp` to report deleted files.
 1.  `immutable` is shorthand that means the same thing as
     `noadd,nomodify,nodelete` all together.
+
+Policies are joined together (without spaces) by a comma as in the
+definition of the `immutable` policy. Order and repetition do not
+matter.
 
 ### Examples
 
