@@ -205,13 +205,13 @@ mod tests {
     }
 
     #[test]
-    fn disallow_empty_config() {
+    fn config_must_not_be_empty() {
         let config = "";
         assert!(!ZakopaneConfig::new(&config).is_ok());
     }
 
     #[test]
-    fn disallow_obviously_malformed_config() {
+    fn config_must_not_be_obviously_malformed() {
         let config = r#"
 This is not a zakopane config -
 rather, it's two lines of text.
