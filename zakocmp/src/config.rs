@@ -55,7 +55,7 @@ fn policy_token_as_int(token: &str) -> Result<i32, Error> {
 // Borrows the string representation of a combined `policy` and returns
 // the equivalent integral representation. This function expects
 // `policy` to comprise one or more policy tokens separated by commas.
-fn policy_repr_as_int(policy: &str) -> Result<i32, Error> {
+fn policy_tokens_as_int(policy: &str) -> Result<i32, Error> {
     let policy_ints: Vec<i32> = policy
         .split(",")
         .map(|tok| policy_token_as_int(tok))
@@ -68,13 +68,13 @@ fn policy_repr_as_int(policy: &str) -> Result<i32, Error> {
 // Borrows yaml representations of one line of zakopane policy and
 // returns the corresponding valid tuple suitable for use in building a
 // ZakopanePolicies object.
-fn extract_policy(ypath: &Yaml, policy_repr: &Yaml) -> Result<(String, i32), Error> {
+fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), Error> {
     let path: String = match ypath.as_str() {
         Some(string) => string.to_owned(),
         None => return Err(Error::new(ErrorKind::InvalidData, "malformed path?")),
     };
-    let policy: i32 = match policy_repr.as_str() {
-        Some(string) => policy_repr_as_int(string)?,
+    let policy: i32 = match policy_tokens.as_str() {
+        Some(string) => policy_tokens_as_int(string)?,
         None => return Err(Error::new(ErrorKind::InvalidData, "malformed policy?")),
     };
     Ok((path, policy))
@@ -105,6 +105,20 @@ fn policies_from_yaml(doc: &Yaml) -> Result<ZakopanePolicies, Error> {
     Ok(policies)
 }
 
+// Borrows the YAML representation of a zakopane config and returns the
+// integral default-policy defined within.
+fn default_policy_from_yaml(doc: &Yaml) -> Result<i32, Error> {
+    let default_policy_yaml = &doc[DEFAULT_POLICY_KEY];
+    if default_policy_yaml.is_badvalue() {
+        return Err(Error::new(ErrorKind::InvalidData, DEFAULT_POLICY_KEY));
+    }
+    let default_policy: i32 = match default_policy_yaml.as_str() {
+        None => return Err(Error::new(ErrorKind::InvalidData, DEFAULT_POLICY_KEY)),
+        Some(token) => policy_tokens_as_int(&token),
+    }?;
+    Ok(default_policy)
+}
+
 impl ZakopaneConfig {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding ZakopaneConfig.
@@ -118,15 +132,7 @@ impl ZakopaneConfig {
         }
         let doc = &docs[0];
 
-        let default_policy_yaml = &doc[DEFAULT_POLICY_KEY];
-        if default_policy_yaml.is_badvalue() {
-            return Err(Error::new(ErrorKind::InvalidData, DEFAULT_POLICY_KEY));
-        }
-        let default_policy: i32 = match default_policy_yaml.as_str() {
-            None => return Err(Error::new(ErrorKind::InvalidData, DEFAULT_POLICY_KEY)),
-            Some(token) => policy_repr_as_int(&token),
-        }?;
-
+        let default_policy = default_policy_from_yaml(&doc)?;
         let policies: ZakopanePolicies = policies_from_yaml(&doc)?;
 
         Ok(ZakopaneConfig {
@@ -153,7 +159,7 @@ mod tests {
 
     #[test]
     fn policy_token_bare_noadd() {
-        let policy: i32 = match policy_repr_as_int(&"noadd") {
+        let policy: i32 = match policy_tokens_as_int(&"noadd") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
         };
@@ -162,7 +168,7 @@ mod tests {
 
     #[test]
     fn policy_token_bare_nodelete() {
-        let policy: i32 = match policy_repr_as_int(&"nodelete") {
+        let policy: i32 = match policy_tokens_as_int(&"nodelete") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
         };
@@ -171,7 +177,7 @@ mod tests {
 
     #[test]
     fn policy_token_bare_nomodify() {
-        let policy: i32 = match policy_repr_as_int(&"nomodify") {
+        let policy: i32 = match policy_tokens_as_int(&"nomodify") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
         };
@@ -180,7 +186,7 @@ mod tests {
 
     #[test]
     fn policy_tokens_can_combo() {
-        let policy: i32 = match policy_repr_as_int(&"noadd,nodelete") {
+        let policy: i32 = match policy_tokens_as_int(&"noadd,nodelete") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
         };
@@ -190,7 +196,8 @@ mod tests {
     #[test]
     fn policy_tokens_can_repeat() {
         let policy: i32 =
-            match policy_repr_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd") {
+            match policy_tokens_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd")
+            {
                 Ok(value) => value,
                 Err(oof) => panic!(oof),
             };
@@ -222,7 +229,8 @@ policies:
 
         let mut config_with_default_policy: String = r#"
 default-policy: immutable
-        "#.to_string();
+        "#
+        .to_string();
         config_with_default_policy.push_str(&config);
         assert!(ZakopaneConfig::new(&config_with_default_policy).is_ok())
     }
