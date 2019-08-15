@@ -228,7 +228,7 @@ default-policy: immutable
     }
 
     #[test]
-    fn config_with_no_specific_policies() {
+    fn config_might_not_have_specific_policies() {
         let config = r#"
 default-policy: nodelete
 one-irrelevant-key: it doesn't matter what we put here
@@ -239,7 +239,18 @@ third-irrelevant-key: so long as it contains a default-policy
     }
 
     #[test]
-    fn config_with_several_policies() {
+    fn config_policies_must_be_a_map() {
+        let config = r#"
+default-policy: noadd
+policies:
+    -   eh?
+    -   this ain't a map
+        "#;
+        assert!(!ZakopaneConfig::new(&config).is_ok());
+    }
+
+    #[test]
+    fn config_can_have_several_policies() {
         let config = r#"
 default-policy: immutable
 policies:
