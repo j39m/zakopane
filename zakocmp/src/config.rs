@@ -52,43 +52,10 @@ fn policy_token_as_int(token: &str) -> Result<i32, Error> {
     }
 }
 
-/// Borrows the string representation of a combined `policy` and returns
-/// the equivalent integral representation. This function expects
-/// `policy` to comprise one or more policy tokens separated by commas.
-///
-/// # Examples
-///
-/// ```
-/// # mod zakocmp;
-/// let policy: i32 = config::policy_repr_as_int(&"immutable").unwrap();
-/// assert!(policy == config::POLICY_IMMUTABLE);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
-/// // Multiple policies are bitwise OR'd together.
-/// let policy: i32 = config::policy_repr_as_int(
-///     &"noadd,nomodify").unwrap();
-/// assert!(policy == config::POLICY_NOADD | config::POLICY_NOMODIFY);
-/// ```
-///
-/// ```
-/// # mod zakocmp;
-/// // The biggest bitwise OR equals POLICY_IMMUTABLE.
-/// let policy: i32 = config::policy_repr_as_int(
-///     &"noadd,nodelete,nomodify").unwrap();
-/// assert!(policy == config::POLICY_IMMUTABLE);
-/// ```
-///
-/// # Failures
-///
-/// ```
-/// # mod zakocmp;
-/// // Obi-wan was witty, but not good at dictating zakocmp policy.
-/// assert!(!config::policy_repr_as_int(&"hello there!").is_ok());
-/// ```
-///
-pub fn policy_repr_as_int(policy: &str) -> Result<i32, Error> {
+// Borrows the string representation of a combined `policy` and returns
+// the equivalent integral representation. This function expects
+// `policy` to comprise one or more policy tokens separated by commas.
+fn policy_repr_as_int(policy: &str) -> Result<i32, Error> {
     let policy_ints: Vec<i32> = policy
         .split(",")
         .map(|tok| policy_token_as_int(tok))
@@ -185,7 +152,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_policy_bare_noadd() {
+    fn policy_token_bare_noadd() {
         let policy: i32 = match policy_repr_as_int(&"noadd") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -194,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_bare_nodelete() {
+    fn policy_token_bare_nodelete() {
         let policy: i32 = match policy_repr_as_int(&"nodelete") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -203,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_bare_nomodify() {
+    fn policy_token_bare_nomodify() {
         let policy: i32 = match policy_repr_as_int(&"nomodify") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -212,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_combo() {
+    fn policy_tokens_can_combo() {
         let policy: i32 = match policy_repr_as_int(&"noadd,nodelete") {
             Ok(value) => value,
             Err(oof) => panic!(oof),
@@ -221,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_repetition() {
+    fn policy_tokens_can_repeat() {
         let policy: i32 =
             match policy_repr_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd") {
                 Ok(value) => value,
