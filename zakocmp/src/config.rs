@@ -25,6 +25,12 @@ pub const POLICY_NODELETE: i32 = 1 << 1;
 pub const POLICY_NOMODIFY: i32 = 1 << 2;
 pub const POLICY_IMMUTABLE: i32 = POLICY_NOADD | POLICY_NODELETE | POLICY_NOMODIFY;
 
+// Represents the length of the string "./" which as an implementation
+// detail currently precedes all paths captured in zakopane snapshots.
+// If a path matches only this, the match is trivial and should not be
+// have its policy applied.
+const TRIVIAL_MATCH_LENGTH: usize = 2;
+
 // Represents a sorted vector of zakopane config rules, each mapping a
 // path (prefix) to a policy. This type alias is provided for ease of
 // coding.
@@ -147,9 +153,26 @@ impl ZakopaneConfig {
         1 + self.policies.len()
     }
 
-    // Returns the default policy.
-    pub fn default_policy(&self) -> i32 {
-        self.default_policy
+    // Borrows a `path` and returns the best-matched policy that
+    // applies. This function returns an owned tuple of the
+    // (closest-matched path expression, integral policy).
+    //
+    // This function represents the default-policy fallback by
+    // returning the tuple consisting of an empty &str and the
+    // default policy.
+    pub fn match_policy(&self, path: &str) -> (&str, i32) {
+        let mut best_match_path: &str = "";
+        let mut best_match_policy: i32 = 0;
+        for (prefix, policy) in self.policies.iter() {
+            if path.starts_with(prefix) && prefix.len() > best_match_path.len() {
+                best_match_path = prefix;
+                best_match_policy = *policy;
+            }
+        }
+        if best_match_path.len() <= TRIVIAL_MATCH_LENGTH {
+            return ("", self.default_policy);
+        }
+        return (best_match_path, best_match_policy);
     }
 }
 
@@ -266,5 +289,62 @@ policies:
     general-kenobi: nodelete
         "#;
         assert!(ZakopaneConfig::new(&config).is_ok());
+    }
+
+    #[test]
+    fn match_default_policy() {
+        let config_yaml = r#"
+default-policy: noadd
+        "#;
+        let config = ZakopaneConfig::new(&config_yaml).unwrap();
+
+        // With only a default policy, this config has just 1 rule.
+        assert!(config.rules() == 1);
+
+        // Any path prefix we throw at match_policy() shall come up
+        // as the default policy.
+        let (_path, policy) = config.match_policy("./Documents/hello/there.txt");
+        assert!(policy == POLICY_NOADD);
+        let (_path, policy) = config.match_policy("./Music/general/kenobi.txt");
+        assert!(policy == POLICY_NOADD);
+    }
+
+    #[test]
+    fn match_nondefault_policies() {
+        let config_yaml = r#"
+default-policy: immutable
+policies:
+    ./Pictures/: noadd
+    ./Pictures/2019/third-party/: nodelete
+    ./Pictures/2020/: nomodify
+    ./Pictures/2020/food/: nodelete,nomodify
+        "#;
+        let config = ZakopaneConfig::new(&config_yaml).unwrap();
+
+        assert!(config.rules() == 5);
+
+        // Falls back on the default-policy absent any specific policy
+        // defined for this file.
+        let (_path, policy) = config.match_policy("./Documents/catch-me-senpai.txt");
+        assert!(policy == POLICY_IMMUTABLE);
+        // Matches only ``./Pictures.''
+        let (_path, policy) = config.match_policy("./Pictures/2016/yano.jpg");
+        assert!(policy == POLICY_NOADD);
+        // As above and does _not_ match ``./Pictures/2019/third-party/.''
+        let (_path, policy) = config.match_policy("./Pictures/2019/first-party.jpg");
+        assert!(policy == POLICY_NOADD);
+        // Does match ``./Pictures/2019/third-party/.''
+        let (_path, policy) = config.match_policy("./Pictures/2019/third-party/yano.jpg");
+        assert!(policy == POLICY_NODELETE);
+
+        // Path prefix matching is done strictly and exactly;
+        // ``food.md'' doesn't match ``food/,'' so there's no risk of
+        // zakopane confusing cohabiting entities with similar basenames.
+        let (path, policy) = config.match_policy("./Pictures/2020/food.md");
+        assert!(policy == POLICY_NOMODIFY);
+        assert!(path == "./Pictures/2020/");
+        let (path, policy) = config.match_policy("./Pictures/2020/food/tacos.jpg");
+        assert!(policy == POLICY_NODELETE | POLICY_NOMODIFY);
+        assert!(path == "./Pictures/2020/food/");
     }
 }
