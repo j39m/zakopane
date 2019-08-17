@@ -28,12 +28,12 @@ pub const POLICY_IMMUTABLE: i32 = POLICY_NOADD | POLICY_NODELETE | POLICY_NOMODI
 // Represents a sorted vector of zakopane config rules, each mapping a
 // path (prefix) to a policy. This type alias is provided for ease of
 // coding.
-type ZakopanePolicies = Vec<(String, i32)>;
+type Policies = Vec<(String, i32)>;
 
 // Represents a zakopane config. Please consult the documentation.
-pub struct ZakopaneConfig {
+pub struct Config {
     default_policy: i32,
-    policies: ZakopanePolicies,
+    policies: Policies,
 }
 
 // Borrows the string representation of one policy `token` and returns
@@ -67,7 +67,7 @@ fn policy_tokens_as_int(policy: &str) -> Result<i32, Error> {
 
 // Borrows yaml representations of one line of zakopane policy and
 // returns the corresponding valid tuple suitable for use in building a
-// ZakopanePolicies object.
+// Policies object.
 fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), Error> {
     let path: String = match ypath.as_str() {
         Some(string) => string.to_owned(),
@@ -81,9 +81,9 @@ fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), E
 }
 
 // Borrows the YAML representation of a zakopane config and returns the
-// corresponding ZakopanePolicies. The return value can be benignly
+// corresponding Policies. The return value can be benignly
 // empty (e.g. if the present config elects not to specify any rules).
-fn policies_from_yaml(doc: &Yaml) -> Result<ZakopanePolicies, Error> {
+fn policies_from_yaml(doc: &Yaml) -> Result<Policies, Error> {
     let policies_map_yaml = &doc[POLICIES_KEY];
     if policies_map_yaml.is_badvalue() {
         // Assumes the config may be benignly devoid of specific
@@ -97,10 +97,10 @@ fn policies_from_yaml(doc: &Yaml) -> Result<ZakopanePolicies, Error> {
         Some(map) => map,
         None => return Err(Error::new(ErrorKind::InvalidData, "malformed policies")),
     };
-    let mut policies: ZakopanePolicies = policies_map
+    let mut policies: Policies = policies_map
         .into_iter()
         .map(|pair| extract_policy(&pair.0, &pair.1))
-        .collect::<Result<ZakopanePolicies, Error>>()?;
+        .collect::<Result<Policies, Error>>()?;
     policies.sort_unstable_by_key(|pair| pair.0.to_owned());
     Ok(policies)
 }
@@ -119,10 +119,10 @@ fn default_policy_from_yaml(doc: &Yaml) -> Result<i32, Error> {
     Ok(default_policy)
 }
 
-impl ZakopaneConfig {
+impl Config {
     // Borrows the string representation of a zakopane config and
-    // returns a corresponding ZakopaneConfig.
-    pub fn new(config: &str) -> Result<ZakopaneConfig, Error> {
+    // returns a corresponding Config.
+    pub fn new(config: &str) -> Result<Config, Error> {
         let docs: Vec<Yaml> = match YamlLoader::load_from_str(config) {
             Ok(val) => val,
             Err(scan_error) => return Err(Error::new(ErrorKind::InvalidData, scan_error)),
@@ -133,9 +133,9 @@ impl ZakopaneConfig {
         let doc = &docs[0];
 
         let default_policy = default_policy_from_yaml(&doc)?;
-        let policies: ZakopanePolicies = policies_from_yaml(&doc)?;
+        let policies: Policies = policies_from_yaml(&doc)?;
 
-        Ok(ZakopaneConfig {
+        Ok(Config {
             default_policy: default_policy,
             policies: policies,
         })
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn config_must_not_be_empty() {
         let config = "";
-        assert!(!ZakopaneConfig::new(&config).is_ok());
+        assert!(!Config::new(&config).is_ok());
     }
 
     #[test]
@@ -212,7 +212,7 @@ mod tests {
 This is not a zakopane config -
 rather, it's two lines of text.
         "#;
-        assert!(!ZakopaneConfig::new(&config).is_ok());
+        assert!(!Config::new(&config).is_ok());
     }
 
     #[test]
@@ -221,14 +221,14 @@ rather, it's two lines of text.
 policies:
     hello-there: nomodify
         "#;
-        assert!(!ZakopaneConfig::new(&config).is_ok());
+        assert!(!Config::new(&config).is_ok());
 
         let mut config_with_default_policy: String = r#"
 default-policy: immutable
         "#
         .to_string();
         config_with_default_policy.push_str(&config);
-        assert!(ZakopaneConfig::new(&config_with_default_policy).is_ok())
+        assert!(Config::new(&config_with_default_policy).is_ok())
     }
 
     #[test]
@@ -239,7 +239,7 @@ one-irrelevant-key: it doesn't matter what we put here
 another-irrelevant-key: this doesn't invalidate the YAML
 third-irrelevant-key: so long as it contains a default-policy
         "#;
-        assert!(ZakopaneConfig::new(&config).is_ok());
+        assert!(Config::new(&config).is_ok());
     }
 
     #[test]
@@ -250,7 +250,7 @@ policies:
     -   eh?
     -   this ain't a map
         "#;
-        assert!(!ZakopaneConfig::new(&config).is_ok());
+        assert!(!Config::new(&config).is_ok());
     }
 
     #[test]
@@ -261,7 +261,7 @@ policies:
     hello-there: noadd
     general-kenobi: nodelete
         "#;
-        assert!(ZakopaneConfig::new(&config).is_ok());
+        assert!(Config::new(&config).is_ok());
     }
 
     #[test]
@@ -269,7 +269,7 @@ policies:
         let config_yaml = r#"
 default-policy: noadd
         "#;
-        let config = ZakopaneConfig::new(&config_yaml).unwrap();
+        let config = Config::new(&config_yaml).unwrap();
 
         // With only a default policy, this config has just 1 rule.
         assert!(config.rules() == 1);
@@ -292,7 +292,7 @@ policies:
     ./Pictures/2020/: nomodify
     ./Pictures/2020/food/: nodelete,nomodify
         "#;
-        let config = ZakopaneConfig::new(&config_yaml).unwrap();
+        let config = Config::new(&config_yaml).unwrap();
 
         assert!(config.rules() == 5);
 
