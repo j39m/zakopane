@@ -5,6 +5,7 @@ extern crate yaml_rust;
 
 use std::io::{Error, ErrorKind};
 use std::result::Result;
+use std::string::String;
 use std::vec::Vec;
 use yaml_rust::{Yaml, YamlLoader};
 
