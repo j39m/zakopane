@@ -181,49 +181,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn policy_token_bare_noadd() {
-        let policy: i32 = match policy_tokens_as_int(&"noadd") {
-            Ok(value) => value,
-            Err(oof) => panic!(oof),
-        };
+    fn policy_token_bare() {
+        let policy: i32 = policy_tokens_as_int(&"noadd").unwrap();
         assert!(policy == POLICY_NOADD);
-    }
 
-    #[test]
-    fn policy_token_bare_nodelete() {
-        let policy: i32 = match policy_tokens_as_int(&"nodelete") {
-            Ok(value) => value,
-            Err(oof) => panic!(oof),
-        };
+        let policy: i32 = policy_tokens_as_int(&"nodelete").unwrap();
         assert!(policy == POLICY_NODELETE);
-    }
 
-    #[test]
-    fn policy_token_bare_nomodify() {
-        let policy: i32 = match policy_tokens_as_int(&"nomodify") {
-            Ok(value) => value,
-            Err(oof) => panic!(oof),
-        };
+        let policy: i32 = policy_tokens_as_int(&"nomodify").unwrap();
         assert!(policy == POLICY_NOMODIFY);
     }
 
     #[test]
     fn policy_tokens_can_combo() {
-        let policy: i32 = match policy_tokens_as_int(&"noadd,nodelete") {
-            Ok(value) => value,
-            Err(oof) => panic!(oof),
-        };
+        let policy: i32 = policy_tokens_as_int(&"noadd,nodelete").unwrap();
         assert!(policy == POLICY_NOADD | POLICY_NODELETE);
     }
 
     #[test]
     fn policy_tokens_can_repeat() {
         let policy: i32 =
-            match policy_tokens_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd")
-            {
-                Ok(value) => value,
-                Err(oof) => panic!(oof),
-            };
+            policy_tokens_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd")
+                .unwrap();
         assert!(policy == POLICY_NOADD | POLICY_NODELETE);
     }
 
