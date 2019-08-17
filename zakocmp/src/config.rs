@@ -25,12 +25,6 @@ pub const POLICY_NODELETE: i32 = 1 << 1;
 pub const POLICY_NOMODIFY: i32 = 1 << 2;
 pub const POLICY_IMMUTABLE: i32 = POLICY_NOADD | POLICY_NODELETE | POLICY_NOMODIFY;
 
-// Represents the length of the string "./" which as an implementation
-// detail currently precedes all paths captured in zakopane snapshots.
-// If a path matches only this, the match is trivial and should not be
-// have its policy applied.
-const TRIVIAL_MATCH_LENGTH: usize = 2;
-
 // Represents a sorted vector of zakopane config rules, each mapping a
 // path (prefix) to a policy. This type alias is provided for ease of
 // coding.
@@ -169,7 +163,7 @@ impl ZakopaneConfig {
                 best_match_policy = *policy;
             }
         }
-        if best_match_path.len() <= TRIVIAL_MATCH_LENGTH {
+        if best_match_path.len() == 0 {
             return ("", self.default_policy);
         }
         return (best_match_path, best_match_policy);
