@@ -4,10 +4,9 @@ version = "0.1.0"
 authors = ["j39m"]
 edition = "2018"
 
-[lib]
-name = "config"
-path = "src/config.rs"
-doctest = true
+[[bin]]
+name = "zakocmp"
+path = "src/main.rs"
 
 [dependencies]
 yaml-rust = "0.4"
