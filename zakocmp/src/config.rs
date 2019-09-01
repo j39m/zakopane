@@ -178,19 +178,19 @@ mod tests {
     #[test]
     fn policy_token_bare() {
         let policy: i32 = policy_tokens_as_int(&"noadd").unwrap();
-        assert!(policy == POLICY_NOADD);
+        assert_eq!(policy, POLICY_NOADD);
 
         let policy: i32 = policy_tokens_as_int(&"nodelete").unwrap();
-        assert!(policy == POLICY_NODELETE);
+        assert_eq!(policy, POLICY_NODELETE);
 
         let policy: i32 = policy_tokens_as_int(&"nomodify").unwrap();
-        assert!(policy == POLICY_NOMODIFY);
+        assert_eq!(policy, POLICY_NOMODIFY);
     }
 
     #[test]
     fn policy_tokens_can_combo() {
         let policy: i32 = policy_tokens_as_int(&"noadd,nodelete").unwrap();
-        assert!(policy == POLICY_NOADD | POLICY_NODELETE);
+        assert_eq!(policy, POLICY_NOADD | POLICY_NODELETE);
     }
 
     #[test]
@@ -198,7 +198,7 @@ mod tests {
         let policy: i32 =
             policy_tokens_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd")
                 .unwrap();
-        assert!(policy == POLICY_NOADD | POLICY_NODELETE);
+        assert_eq!(policy, POLICY_NOADD | POLICY_NODELETE);
     }
 
     #[test]
@@ -273,14 +273,14 @@ default-policy: noadd
         let config = Config::new(&config_yaml).unwrap();
 
         // With only a default policy, this config has just 1 rule.
-        assert!(config.rules() == 1);
+        assert_eq!(config.rules(), 1);
 
         // Any path prefix we throw at match_policy() shall come up
         // as the default policy.
         let (_path, policy) = config.match_policy("./Documents/hello/there.txt");
-        assert!(policy == POLICY_NOADD);
+        assert_eq!(policy, POLICY_NOADD);
         let (_path, policy) = config.match_policy("./Music/general/kenobi.txt");
-        assert!(policy == POLICY_NOADD);
+        assert_eq!(policy, POLICY_NOADD);
     }
 
     #[test]
@@ -295,30 +295,30 @@ policies:
         "#;
         let config = Config::new(&config_yaml).unwrap();
 
-        assert!(config.rules() == 5);
+        assert_eq!(config.rules(), 5);
 
         // Falls back on the default-policy absent any specific policy
         // defined for this file.
         let (_path, policy) = config.match_policy("./Documents/catch-me-senpai.txt");
-        assert!(policy == POLICY_IMMUTABLE);
+        assert_eq!(policy, POLICY_IMMUTABLE);
         // Matches only ``./Pictures.''
         let (_path, policy) = config.match_policy("./Pictures/2016/yano.jpg");
-        assert!(policy == POLICY_NOADD);
+        assert_eq!(policy, POLICY_NOADD);
         // As above and does _not_ match ``./Pictures/2019/third-party/.''
         let (_path, policy) = config.match_policy("./Pictures/2019/first-party.jpg");
-        assert!(policy == POLICY_NOADD);
+        assert_eq!(policy, POLICY_NOADD);
         // Does match ``./Pictures/2019/third-party/.''
         let (_path, policy) = config.match_policy("./Pictures/2019/third-party/yano.jpg");
-        assert!(policy == POLICY_NODELETE);
+        assert_eq!(policy, POLICY_NODELETE);
 
         // Path prefix matching is done strictly and exactly;
         // ``food.md'' doesn't match ``food/,'' so there's no risk of
         // zakopane confusing cohabiting entities with similar basenames.
         let (path, policy) = config.match_policy("./Pictures/2020/food.md");
-        assert!(policy == POLICY_NOMODIFY);
-        assert!(path == "./Pictures/2020/");
+        assert_eq!(policy, POLICY_NOMODIFY);
+        assert_eq!(path, "./Pictures/2020/");
         let (path, policy) = config.match_policy("./Pictures/2020/food/tacos.jpg");
-        assert!(policy == POLICY_NODELETE | POLICY_NOMODIFY);
-        assert!(path == "./Pictures/2020/food/");
+        assert_eq!(policy, POLICY_NODELETE | POLICY_NOMODIFY);
+        assert_eq!(path, "./Pictures/2020/food/");
     }
 }

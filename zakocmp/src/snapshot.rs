@@ -107,7 +107,7 @@ simple-zakopane.sh: /home/kalvin
     #[test]
     fn snapshot_must_have_proper_header() {
         let snapshot = Snapshot::new(SNAPSHOT_HEADER_FOR_TESTING).unwrap();
-        assert!(snapshot.contents.len() == 0);
+        assert_eq!(snapshot.contents.len(), 0);
 
         let snapshot_without_proper_header = r#"simple-zakopane.sh: 2019-07-27-090032
 simple-zakopane.sh: /home/kalvin
@@ -120,7 +120,7 @@ simple-zakopane.sh: /home/kalvin
         let checksum_ok =
             "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt";
         let snapshot = Snapshot::new(&snapshot_string_for_testing(checksum_ok)).unwrap();
-        assert!(snapshot.contents.len() == 1);
+        assert_eq!(snapshot.contents.len(), 1);
 
         // Oh no! This checksum dropped a character off the end.
         let checksum_short =
