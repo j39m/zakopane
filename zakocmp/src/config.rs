@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn config_must_not_be_empty() {
         let config = "";
-        assert!(!Config::new(&config).is_ok());
+        assert!(Config::new(&config).is_err());
     }
 
     #[test]
@@ -213,7 +213,7 @@ mod tests {
 This is not a zakopane config -
 rather, it's two lines of text.
         "#;
-        assert!(!Config::new(&config).is_ok());
+        assert!(Config::new(&config).is_err());
     }
 
     #[test]
@@ -222,7 +222,7 @@ rather, it's two lines of text.
 policies:
     hello-there: nomodify
         "#;
-        assert!(!Config::new(&config).is_ok());
+        assert!(Config::new(&config).is_err());
 
         let mut config_with_default_policy: String = r#"
 default-policy: immutable
@@ -251,7 +251,7 @@ policies:
     -   eh?
     -   this ain't a map
         "#;
-        assert!(!Config::new(&config).is_ok());
+        assert!(Config::new(&config).is_err());
     }
 
     #[test]
