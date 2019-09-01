@@ -112,7 +112,7 @@ simple-zakopane.sh: /home/kalvin
         let snapshot_without_proper_header = r#"simple-zakopane.sh: 2019-07-27-090032
 simple-zakopane.sh: /home/kalvin
 "#;
-        assert!(!Snapshot::new(snapshot_without_proper_header).is_ok());
+        assert!(Snapshot::new(snapshot_without_proper_header).is_err());
     }
 
     #[test]
@@ -125,16 +125,16 @@ simple-zakopane.sh: /home/kalvin
         // Oh no! This checksum dropped a character off the end.
         let checksum_short =
             "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a ./hello/there.txt";
-        assert!(!Snapshot::new(&snapshot_string_for_testing(checksum_short)).is_ok());
+        assert!(Snapshot::new(&snapshot_string_for_testing(checksum_short)).is_err());
 
         // Oh no! This checksum line does not refer to a path.
         let checksum_without_path =
             "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ";
-        assert!(!Snapshot::new(&snapshot_string_for_testing(checksum_without_path)).is_ok());
+        assert!(Snapshot::new(&snapshot_string_for_testing(checksum_without_path)).is_err());
 
         // Checksum lines may not be empty or too short.
-        assert!(!Snapshot::new(&snapshot_string_for_testing("\n")).is_ok());
-        assert!(!Snapshot::new(&snapshot_string_for_testing("Hello there!")).is_ok());
+        assert!(Snapshot::new(&snapshot_string_for_testing("\n")).is_err());
+        assert!(Snapshot::new(&snapshot_string_for_testing("Hello there!")).is_err());
     }
 
     #[test]
@@ -142,6 +142,6 @@ simple-zakopane.sh: /home/kalvin
         let checksums =
             "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt
         4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt";
-        assert!(!Snapshot::new(&snapshot_string_for_testing(checksums)).is_ok());
+        assert!(Snapshot::new(&snapshot_string_for_testing(checksums)).is_err());
     }
 }
