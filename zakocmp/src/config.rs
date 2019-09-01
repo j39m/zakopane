@@ -3,7 +3,6 @@
 
 extern crate yaml_rust;
 
-use std::io::{Error, ErrorKind};
 use std::result::Result;
 use std::string::String;
 use std::vec::Vec;
@@ -39,15 +38,15 @@ pub struct Config {
 
 // Borrows the string representation of one policy `token` and returns
 // the equivalent integral representation.
-fn policy_token_as_int(token: &str) -> Result<i32, Error> {
+fn policy_token_as_int(token: &str) -> Result<i32, std::io::Error> {
     match token {
         POLICY_REPR_IGNORE => Ok(POLICY_IGNORE),
         POLICY_REPR_NOADD => Ok(POLICY_NOADD),
         POLICY_REPR_NODELETE => Ok(POLICY_NODELETE),
         POLICY_REPR_NOMODIFY => Ok(POLICY_NOMODIFY),
         POLICY_REPR_IMMUTABLE => Ok(POLICY_IMMUTABLE),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
             format!("bad token: ``{}''", token),
         )),
     }
@@ -56,11 +55,11 @@ fn policy_token_as_int(token: &str) -> Result<i32, Error> {
 // Borrows the string representation of a combined `policy` and returns
 // the equivalent integral representation. This function expects
 // `policy` to comprise one or more policy tokens separated by commas.
-fn policy_tokens_as_int(policy: &str) -> Result<i32, Error> {
+fn policy_tokens_as_int(policy: &str) -> Result<i32, std::io::Error> {
     let policy_ints: Vec<i32> = policy
         .split(",")
         .map(|tok| policy_token_as_int(tok))
-        .collect::<Result<Vec<i32>, Error>>()?;
+        .collect::<Result<Vec<i32>, std::io::Error>>()?;
     return Ok(policy_ints
         .iter()
         .fold(POLICY_IGNORE, |accum, elem| accum | elem));
@@ -69,14 +68,24 @@ fn policy_tokens_as_int(policy: &str) -> Result<i32, Error> {
 // Borrows yaml representations of one line of zakopane policy and
 // returns the corresponding valid tuple suitable for use in building a
 // Policies object.
-fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), Error> {
+fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), std::io::Error> {
     let path: String = match ypath.as_str() {
         Some(string) => string.to_owned(),
-        None => return Err(Error::new(ErrorKind::InvalidData, "malformed path?")),
+        None => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "malformed path?",
+            ))
+        }
     };
     let policy: i32 = match policy_tokens.as_str() {
         Some(string) => policy_tokens_as_int(string)?,
-        None => return Err(Error::new(ErrorKind::InvalidData, "malformed policy?")),
+        None => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "malformed policy?",
+            ))
+        }
     };
     Ok((path, policy))
 }
@@ -84,7 +93,7 @@ fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), E
 // Borrows the YAML representation of a zakopane config and returns the
 // corresponding Policies. The return value can be benignly
 // empty (e.g. if the present config elects not to specify any rules).
-fn policies_from_yaml(doc: &Yaml) -> Result<Policies, Error> {
+fn policies_from_yaml(doc: &Yaml) -> Result<Policies, std::io::Error> {
     let policies_map_yaml = &doc[POLICIES_KEY];
     if policies_map_yaml.is_badvalue() {
         // Assumes the config may be benignly devoid of specific
@@ -96,25 +105,38 @@ fn policies_from_yaml(doc: &Yaml) -> Result<Policies, Error> {
     // of policies.
     let policies_map: &yaml_rust::yaml::Hash = match policies_map_yaml.as_hash() {
         Some(map) => map,
-        None => return Err(Error::new(ErrorKind::InvalidData, "malformed policies")),
+        None => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "malformed policies",
+            ))
+        }
     };
     let mut policies: Policies = policies_map
         .into_iter()
         .map(|pair| extract_policy(&pair.0, &pair.1))
-        .collect::<Result<Policies, Error>>()?;
+        .collect::<Result<Policies, std::io::Error>>()?;
     policies.sort_unstable_by_key(|pair| pair.0.to_owned());
     Ok(policies)
 }
 
 // Borrows the YAML representation of a zakopane config and returns the
 // integral default-policy defined within.
-fn default_policy_from_yaml(doc: &Yaml) -> Result<i32, Error> {
+fn default_policy_from_yaml(doc: &Yaml) -> Result<i32, std::io::Error> {
     let default_policy_yaml = &doc[DEFAULT_POLICY_KEY];
     if default_policy_yaml.is_badvalue() {
-        return Err(Error::new(ErrorKind::InvalidData, DEFAULT_POLICY_KEY));
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            DEFAULT_POLICY_KEY,
+        ));
     }
     let default_policy: i32 = match default_policy_yaml.as_str() {
-        None => return Err(Error::new(ErrorKind::InvalidData, DEFAULT_POLICY_KEY)),
+        None => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                DEFAULT_POLICY_KEY,
+            ))
+        }
         Some(token) => policy_tokens_as_int(&token),
     }?;
     Ok(default_policy)
@@ -123,13 +145,21 @@ fn default_policy_from_yaml(doc: &Yaml) -> Result<i32, Error> {
 impl Config {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding Config.
-    pub fn new(config: &str) -> Result<Config, Error> {
+    pub fn new(config: &str) -> Result<Config, std::io::Error> {
         let docs: Vec<Yaml> = match YamlLoader::load_from_str(config) {
             Ok(val) => val,
-            Err(scan_error) => return Err(Error::new(ErrorKind::InvalidData, scan_error)),
+            Err(scan_error) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    scan_error,
+                ))
+            }
         };
         if docs.len() == 0 {
-            return Err(Error::new(ErrorKind::InvalidData, "empty zakopane config"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "empty zakopane config",
+            ));
         }
         let doc = &docs[0];
 
