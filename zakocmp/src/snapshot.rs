@@ -19,6 +19,7 @@ const HEADER_LINES: usize = 3;
 const CHECKSUM_CHARS: usize = 64;
 
 // Defines a zakopane snapshot, which maps paths to checksums.
+#[derive(Debug)]
 pub struct Snapshot {
     contents: HashMap<String, String>,
 }
@@ -101,6 +102,16 @@ simple-zakopane.sh: /home/kalvin
         snapshot
     }
 
+    // Consumes a ZakocmpError and borrows a string slice. Asserts that
+    // the error is of the Snapshot variant and starts with the string
+    // slice.
+    fn assert_snapshot_error(error: ZakocmpError, prefix: &str) {
+        match error {
+            ZakocmpError::Snapshot(message) => assert!(message.starts_with(prefix)),
+            _ => panic!("expected ZakocmpError::Snapshot"),
+        };
+    }
+
     #[test]
     fn snapshot_must_have_proper_header() {
         let snapshot = Snapshot::new(SNAPSHOT_HEADER_FOR_TESTING).unwrap();
@@ -109,7 +120,10 @@ simple-zakopane.sh: /home/kalvin
         let snapshot_without_proper_header = r#"simple-zakopane.sh: 2019-07-27-090032
 simple-zakopane.sh: /home/kalvin
 "#;
-        assert!(Snapshot::new(snapshot_without_proper_header).is_err());
+        assert_snapshot_error(
+            Snapshot::new(snapshot_without_proper_header).unwrap_err(),
+            "truncated",
+        );
     }
 
     #[test]
@@ -119,26 +133,45 @@ simple-zakopane.sh: /home/kalvin
         let snapshot = Snapshot::new(&snapshot_string_for_testing(checksum_ok)).unwrap();
         assert_eq!(snapshot.contents.len(), 1);
 
+        // Defines the literal string "malformed" that appears
+        // repeatedly in the following tests.
+        let malformed: &str = "malformed";
+
         // Oh no! This checksum dropped a character off the end.
         let checksum_short =
             "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a ./hello/there.txt";
-        assert!(Snapshot::new(&snapshot_string_for_testing(checksum_short)).is_err());
+        assert_snapshot_error(
+            Snapshot::new(&snapshot_string_for_testing(checksum_short)).unwrap_err(),
+            malformed,
+        );
 
         // Oh no! This checksum line does not refer to a path.
         let checksum_without_path =
             "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ";
-        assert!(Snapshot::new(&snapshot_string_for_testing(checksum_without_path)).is_err());
+        assert_snapshot_error(
+            Snapshot::new(&snapshot_string_for_testing(checksum_without_path)).unwrap_err(),
+            malformed,
+        );
 
         // Checksum lines may not be empty or too short.
-        assert!(Snapshot::new(&snapshot_string_for_testing("\n")).is_err());
-        assert!(Snapshot::new(&snapshot_string_for_testing("Hello there!")).is_err());
+        assert_snapshot_error(
+            Snapshot::new(&snapshot_string_for_testing("\n")).unwrap_err(),
+            malformed,
+        );
+        assert_snapshot_error(
+            Snapshot::new(&snapshot_string_for_testing("Hello there!")).unwrap_err(),
+            malformed,
+        );
     }
 
     #[test]
     fn snapshot_paths_may_not_repeat() {
         let checksums =
-            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt
-        4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt";
-        assert!(Snapshot::new(&snapshot_string_for_testing(checksums)).is_err());
+            r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt
+4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt"#;
+        assert_snapshot_error(
+            Snapshot::new(&snapshot_string_for_testing(checksums)).unwrap_err(),
+            "path collision",
+        );
     }
 }
