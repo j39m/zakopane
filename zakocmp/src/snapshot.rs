@@ -3,10 +3,14 @@
 // command with three extra lines atop.
 
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
 use std::result::Result;
 use std::str::Lines;
 use std::string::String;
+
+#[path = "errors.rs"]
+mod errors;
+
+use errors::ZakocmpError;
 
 // Defines the number of lines preceding the actual checksum content.
 const HEADER_LINES: usize = 3;
@@ -21,11 +25,8 @@ pub struct Snapshot {
 
 // Borrows the string representation of a line in a zakopane snapshot
 // and returns sliced str's in a tuple of (path, checksum).
-fn parse_snapshot_line(line: &str) -> Result<(&str, &str), Error> {
-    let bad_line: Error = Error::new(
-        ErrorKind::InvalidData,
-        format!("malformed snapshot line: ``{}''", line),
-    );
+fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakocmpError> {
+    let bad_line = ZakocmpError::Snapshot(format!("malformed snapshot line: ``{}''", line));
     // A snapshot line should consist of the checksum, a space, and a
     // non-empty pathname.
     if line.len() < CHECKSUM_CHARS + 2
@@ -45,7 +46,7 @@ fn parse_snapshot_line(line: &str) -> Result<(&str, &str), Error> {
 impl Snapshot {
     // Borrows the string representation of a zakopane snapshot and
     // returns the corresponding Snapshot struct.
-    pub fn new(snapshot: &str) -> Result<Snapshot, Error> {
+    pub fn new(snapshot: &str) -> Result<Snapshot, ZakocmpError> {
         let mut lines: Lines = snapshot.lines();
 
         // A zakopane snapshot starts with three extra lines intended
@@ -55,9 +56,8 @@ impl Snapshot {
             match lines.next() {
                 Some(_) => (),
                 None => {
-                    return Err(Error::new(
-                        ErrorKind::InvalidData,
-                        "truncated zakopane snapshot",
+                    return Err(ZakocmpError::Snapshot(
+                        "truncated zakopane snapshot".to_string(),
                     ))
                 }
             };
@@ -71,13 +71,10 @@ impl Snapshot {
             match contents.insert(path.to_string(), checksum.to_string()) {
                 None => (),
                 Some(old_checksum) => {
-                    return Err(Error::new(
-                        ErrorKind::AlreadyExists,
-                        format!(
-                            "path collision: {} (was already {}, is now {})",
-                            path, old_checksum, checksum
-                        ),
-                    ))
+                    return Err(ZakocmpError::Snapshot(format!(
+                        "path collision: {} (was already {}, is now {})",
+                        path, old_checksum, checksum
+                    )))
                 }
             };
         }

@@ -8,4 +8,6 @@ pub enum ZakocmpError {
     Io(std::io::Error),
     // Describes problems with zakocmp configuration files.
     Config(String),
+    // Describes problems with zakocmp snapshot files.
+    Snapshot(String),
 }
