@@ -25,7 +25,7 @@ pub struct Snapshot {
 }
 
 // Borrows the string representation of a line in a zakopane snapshot
-// and returns sliced str's in a tuple of (path, checksum).
+// and returns sliced str's in a tuple of (checksum, path).
 fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakocmpError> {
     let bad_line = ZakocmpError::Snapshot(format!("malformed snapshot line: ``{}''", line));
     // A snapshot line should consist of the checksum, a space, and a
@@ -68,7 +68,7 @@ impl Snapshot {
         // Ingests the rest of the snapshot representation.
         let mut contents: HashMap<String, String> = HashMap::new();
         for line in lines {
-            let (path, checksum) = parse_snapshot_line(line)?;
+            let (checksum, path) = parse_snapshot_line(line)?;
             match contents.insert(path.to_string(), checksum.to_string()) {
                 None => (),
                 Some(old_checksum) => {
@@ -168,7 +168,11 @@ simple-zakopane.sh: /home/kalvin
     fn snapshot_paths_may_not_repeat() {
         let checksums =
             r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt
-4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt"#;
+0000000000000000000000000000000000000000000000000000000000000000 ./hello/there.txt"#;
+        // The point of this test is not to catch identical checksums
+        // (which occur naturally if you ever accidentally duplicate
+        // files), but to catch repeated paths (which should not be
+        // possible in a well-formed snapshot file).
         assert_snapshot_error(
             Snapshot::new(&snapshot_string_for_testing(checksums)).unwrap_err(),
             "path collision",
