@@ -81,6 +81,16 @@ impl Snapshot {
         }
         Ok(Snapshot { contents: contents })
     }
+
+    // Passes the inner struct's iterator straight out.
+    pub fn iter(&self) -> std::collections::hash_map::Iter<String, String> {
+        self.contents.iter()
+    }
+
+    // Returns a reference to the checksum of the file (if present).
+    pub fn get(&self, key: &str) -> std::option::Option<&String> {
+        self.contents.get(key)
+    }
 }
 
 #[cfg(test)]
@@ -177,5 +187,41 @@ simple-zakopane.sh: /home/kalvin
             Snapshot::new(&snapshot_string_for_testing(checksums)).unwrap_err(),
             "path collision",
         );
+    }
+
+    #[test]
+    fn snapshot_get() {
+        // Creates a snapshot describing two files, each with contrived
+        // but valid-looking checksums.
+        let snapshot = Snapshot::new(&snapshot_string_for_testing(
+            r#"0000000000000000000000000000000000000000000000000000000000000001 ./hello/there.txt
+0000000000000000000000000000000000000000000000000000000000000002 ./general/kenobi.txt
+00000000000000000000000000000000000000000000000000000000000000ff ./you/are.txt
+00000000000000000000000000000000000000000000000000000000000001ff ./a/bold-one.txt
+"#,
+        ))
+        .unwrap();
+        assert_eq!(
+            snapshot.get("./hello/there.txt").unwrap(),
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        );
+        assert_eq!(
+            snapshot.get("./general/kenobi.txt").unwrap(),
+            "0000000000000000000000000000000000000000000000000000000000000002"
+        );
+        assert_eq!(
+            snapshot.get("./you/are.txt").unwrap(),
+            "00000000000000000000000000000000000000000000000000000000000000ff"
+        );
+        assert_eq!(
+            snapshot.get("./a/bold-one.txt").unwrap(),
+            "00000000000000000000000000000000000000000000000000000000000001ff"
+        );
+
+        assert!(snapshot.get("blah-blah-nonexistent-key").is_none());
+        // Note that Snapshots don't perform any path comprehension - as
+        // far as a Snapshot key is concerned, it's an arbitrary
+        // sequence of bytes.
+        assert!(snapshot.get("a/bold-one.txt").is_none());
     }
 }
