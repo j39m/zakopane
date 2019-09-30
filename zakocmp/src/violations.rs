@@ -46,7 +46,9 @@ fn display_violation_type(kind: i32) -> &'static str {
         ADDED => REPR_ADDED,
         DELETED => REPR_DELETED,
         MODIFIED => REPR_MODIFIED,
-        _ => panic!(format!("bad kind: {}", kind)),
+        // This case is serious: the burden is on us to have weeded out
+        // invalid violation kinds in previous calls to add().
+        _ => panic!(format!("BUG: bad kind: {}", kind)),
     }
 }
 
