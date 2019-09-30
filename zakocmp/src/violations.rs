@@ -66,7 +66,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn violation_add_fail() {
+    fn violations_add_fail() {
         let mut violations = Violations::new();
         let error = violations.add("some/path", 999).unwrap_err();
         match error {
@@ -76,7 +76,7 @@ mod tests {
     }
 
     #[test]
-    fn violation_add_okay() {
+    fn violations_add_okay() {
         let mut violations = Violations::new();
         assert!(violations
             .add(
@@ -93,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn violation_display() {
+    fn violations_display() {
         let mut violations = Violations::new();
         assert!(violations.add("jello there!", ADDED).is_ok());
         assert!(violations.add("iello there!", MODIFIED).is_ok());
