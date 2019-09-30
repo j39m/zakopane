@@ -10,4 +10,6 @@ pub enum ZakocmpError {
     Config(String),
     // Describes problems with zakocmp snapshot files.
     Snapshot(String),
+    // Describes unknown or unspecified errors.
+    Unknown(String),
 }
