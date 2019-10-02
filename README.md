@@ -43,9 +43,8 @@ file ~/.zakopane//*
 
 ## Notes
 
-*   Work is underway to replace `cmp-zakopane.py` with a more full-featured
-    program that gives more insight into the differences between two
-    different checksum snapshots.
+*   Use `zakocmp` to compare snapshots and to report whether files have
+    changed unexpectedly.
 *   For performance and correctness, perhaps manually implementing the
     checksum snapshot is preferable. But for my purposes,
     `simple-zakopane.sh` is perfectly adequate.
