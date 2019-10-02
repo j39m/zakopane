@@ -126,9 +126,10 @@ impl Config {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding Config.
     pub fn new(config: &str) -> Result<Config, ZakocmpError> {
-        let docs: Vec<Yaml> = YamlLoader::load_from_str(config)
-            .map_err(|scan_error: yaml_rust::ScanError| scan_error.description().to_string())
-            .map_err(ZakocmpError::Config)?;
+        let docs: Vec<Yaml> =
+            YamlLoader::load_from_str(config).map_err(|scan_error: yaml_rust::ScanError| {
+                ZakocmpError::Config(scan_error.description().to_string())
+            })?;
         if docs.len() == 0 {
             return Err(ZakocmpError::Config("empty zakopane config".to_string()));
         }
