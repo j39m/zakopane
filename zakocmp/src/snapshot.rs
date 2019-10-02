@@ -7,10 +7,7 @@ use std::result::Result;
 use std::str::Lines;
 use std::string::String;
 
-#[path = "errors.rs"]
-mod errors;
-
-use errors::ZakocmpError;
+use crate::errors::ZakocmpError;
 
 // Defines the number of lines preceding the actual checksum content.
 const HEADER_LINES: usize = 3;

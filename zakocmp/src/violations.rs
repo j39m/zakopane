@@ -2,10 +2,7 @@
 // violations - i.e. human-readable descriptions of notable
 // discrepancies between zakocmp snapshots.
 
-#[path = "errors.rs"]
-mod errors;
-
-use errors::ZakocmpError;
+use crate::errors::ZakocmpError;
 
 // Represents possible policy violations as caller-passable ints.
 pub const ADDED: i32 = 0;

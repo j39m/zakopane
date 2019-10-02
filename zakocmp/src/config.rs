@@ -9,10 +9,7 @@ use std::string::String;
 use std::vec::Vec;
 use yaml_rust::{Yaml, YamlLoader};
 
-#[path = "errors.rs"]
-mod errors;
-
-use errors::ZakocmpError;
+use crate::errors::ZakocmpError;
 
 const DEFAULT_POLICY_KEY: &'static str = "default-policy";
 const POLICIES_KEY: &'static str = "policies";
