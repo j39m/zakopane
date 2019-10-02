@@ -25,20 +25,21 @@ pub struct Snapshot {
 // and returns sliced str's in a tuple of (checksum, path).
 fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakocmpError> {
     let bad_line = ZakocmpError::Snapshot(format!("malformed snapshot line: ``{}''", line));
-    // A snapshot line should consist of the checksum, a space, and a
+    // A snapshot line should consist of the checksum, two spaces, and a
     // non-empty pathname.
-    if line.len() < CHECKSUM_CHARS + 2
+    if line.len() < CHECKSUM_CHARS + 3
         || !line.is_char_boundary(CHECKSUM_CHARS)
         || !line.is_char_boundary(CHECKSUM_CHARS + 1)
+        || !line.is_char_boundary(CHECKSUM_CHARS + 2)
     {
         return Err(bad_line);
     }
 
     let (checksum, path_with_leading_space) = line.split_at(CHECKSUM_CHARS);
-    if !path_with_leading_space.starts_with(" ") {
+    if !path_with_leading_space.starts_with("  ") {
         return Err(bad_line);
     }
-    Ok((checksum, &path_with_leading_space[1..]))
+    Ok((checksum, &path_with_leading_space[2..]))
 }
 
 impl Snapshot {
@@ -136,7 +137,7 @@ simple-zakopane.sh: /home/kalvin
     #[test]
     fn snapshot_checksum_is_hex() {
         let checksum_ok =
-            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt";
+            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ./hello/there.txt";
         let snapshot = Snapshot::new(&snapshot_string_for_testing(checksum_ok)).unwrap();
         assert_eq!(snapshot.contents.len(), 1);
 
@@ -146,7 +147,7 @@ simple-zakopane.sh: /home/kalvin
 
         // Oh no! This checksum dropped a character off the end.
         let checksum_short =
-            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a ./hello/there.txt";
+            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a  ./hello/there.txt";
         assert_snapshot_error(
             Snapshot::new(&snapshot_string_for_testing(checksum_short)).unwrap_err(),
             malformed,
@@ -154,7 +155,7 @@ simple-zakopane.sh: /home/kalvin
 
         // Oh no! This checksum line does not refer to a path.
         let checksum_without_path =
-            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ";
+            "4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ";
         assert_snapshot_error(
             Snapshot::new(&snapshot_string_for_testing(checksum_without_path)).unwrap_err(),
             malformed,
@@ -174,8 +175,8 @@ simple-zakopane.sh: /home/kalvin
     #[test]
     fn snapshot_paths_may_not_repeat() {
         let checksums =
-            r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5 ./hello/there.txt
-0000000000000000000000000000000000000000000000000000000000000000 ./hello/there.txt"#;
+            r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ./hello/there.txt
+0000000000000000000000000000000000000000000000000000000000000000  ./hello/there.txt"#;
         // The point of this test is not to catch identical checksums
         // (which occur naturally if you ever accidentally duplicate
         // files), but to catch repeated paths (which should not be
@@ -191,10 +192,10 @@ simple-zakopane.sh: /home/kalvin
         // Creates a snapshot describing two files, each with contrived
         // but valid-looking checksums.
         let snapshot = Snapshot::new(&snapshot_string_for_testing(
-            r#"0000000000000000000000000000000000000000000000000000000000000001 ./hello/there.txt
-0000000000000000000000000000000000000000000000000000000000000002 ./general/kenobi.txt
-00000000000000000000000000000000000000000000000000000000000000ff ./you/are.txt
-00000000000000000000000000000000000000000000000000000000000001ff ./a/bold-one.txt
+            r#"0000000000000000000000000000000000000000000000000000000000000001  ./hello/there.txt
+0000000000000000000000000000000000000000000000000000000000000002  ./general/kenobi.txt
+00000000000000000000000000000000000000000000000000000000000000ff  ./you/are.txt
+00000000000000000000000000000000000000000000000000000000000001ff  ./a/bold-one.txt
 "#,
         ))
         .unwrap();
