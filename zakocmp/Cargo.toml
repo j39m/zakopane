@@ -4,9 +4,13 @@ version = "0.1.0"
 authors = ["j39m"]
 edition = "2018"
 
+[lib]
+name = "libzakocmp"
+path = "src/libzakocmp.rs"
+
 [[bin]]
 name = "zakocmp"
-path = "src/main.rs"
+path = "src/bin/zakocmp.rs"
 
 [dependencies]
 yaml-rust = "0.4"
