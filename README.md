@@ -2,10 +2,9 @@
 
 ... is a script that checksums your files.
 
-zakopane began in Python to practice serialization and working with the
-standard cryptographic digests. This Shadokian idea has since been replaced
-with a much easier implementation in a shell script. At this time, I don't
-plan to return to the Python version.
+In a sentence, `zakopane` provides recursive sha256sums for your home
+directory. (The resourceful or scrappy wielder may find other uses for
+it - but that's my primary use case.)
 
 ## Usage
 
@@ -16,35 +15,36 @@ of your choosing. You feed the directory-to-sum as its sole argument.
 I typically use it like so:
 
 ```sh
-cd ~/.zakopane          # store my checksum snapshot here
-simple-zakopane.sh ~/   # checksum my home directory
+# simple-zakopane.sh writes the checksums into its cwd. Before invoking
+# simple-zakopane.sh, you should "cd" into the desired output dir.
+[j39m@SERN ~/Downloads]
+$ cd ~/.config/zakopane/
+
+# I want to checksum my home directory; I invoke simple-zakopane.sh
+# like so:
+[j39m@SERN ~/.config/zakopane]
+$ simple-zakopane.sh ~/
+# much time passes...
+simple-zakopane.sh: Wrote 2019-09-27-140303.sums.
+[j39m@SERN ~/.config/zakopane]
+$ ls
+2019-09-27-140303.sums 
 ```
 
-I have a medium-sized home directory and a slow hard disk, so the script
-will run for a pretty long time. I usually monitor its progress with
-`pstree`. When `simple-zakopane.sh` finishes, it will have written out
-an output file containing all the checksums of the directory-to-sum
-into a file named for the time of invocation (I refer to this as the
-checksum snapshot). As an example:
+### `zakocmp`
 
-```sh
-[j39m@SERN ~]
-$ ls ~/.zakopane/
-2019-01-30-074129.sums
-[j39m@SERN ~]
-$ file !$/*
-file ~/.zakopane//*
-/home/kalvin/.zakopane//2019-01-30-074129.sums: UTF-8 Unicode text
-```
+... is a program that reports notable differences between two `zakopane`
+snapshots. The invoker provides a configuration file to instruct
+`zakocmp` on what constitutes a noteworthy discrepancy.
 
-### `cmp-zakopane.py`
-
-... is a Python script that compares two different checksum snapshots.
+You can find its README.md [here](zakocmp/README.md).
 
 ## Notes
 
-*   Use `zakocmp` to compare snapshots and to report whether files have
-    changed unexpectedly.
 *   For performance and correctness, perhaps manually implementing the
     checksum snapshot is preferable. But for my purposes,
     `simple-zakopane.sh` is perfectly adequate.
+*   Note that `simple-zakopane.sh` does not traverse directories whose
+    names begin with a dot (`.`). This is an intentional, historical
+    choice made to avoid the visual churn of tracking transient files in
+    `~/.config`, `~/.local`, etc. etc.
