@@ -1,7 +1,6 @@
 use libzakocmp::config::Config;
 use libzakocmp::errors::ZakocmpError;
 use libzakocmp::snapshot::Snapshot;
-use libzakocmp::violations::Violations;
 
 use std::io::Read;
 use std::result::Result;
@@ -39,65 +38,6 @@ fn initialize() -> Result<(Config, Snapshot, Snapshot), ZakocmpError> {
     Ok((config, older_snapshot, newer_snapshot))
 }
 
-// Compares the older snapshot against the newer snapshot, accruing
-// violations where discrepancies are detected per policy.
-fn check_modifications_and_deletions(
-    config: &Config,
-    older_snapshot: &Snapshot,
-    newer_snapshot: &Snapshot,
-    violations: &mut Violations,
-) {
-    for (path, checksum) in older_snapshot.iter() {
-        let (_rule_repr, policy) = config.match_policy(path);
-        if policy == libzakocmp::config::POLICY_IGNORE {
-            continue;
-        }
-
-        match newer_snapshot.get(path) {
-            Some(newer_checksum) => {
-                if (policy & libzakocmp::config::POLICY_NOMODIFY) != 0 && checksum != newer_checksum
-                {
-                    violations
-                        .add(path, libzakocmp::violations::MODIFIED)
-                        .unwrap();
-                }
-            }
-            None => {
-                if (policy & libzakocmp::config::POLICY_NODELETE) != 0 {
-                    violations
-                        .add(path, libzakocmp::violations::DELETED)
-                        .unwrap();
-                }
-            }
-        }
-    }
-}
-
-// Compares the newer snapshot against the older snapshot, accruing
-// violations where discrepancies are detected per policy.
-fn check_additions(
-    config: &Config,
-    older_snapshot: &Snapshot,
-    newer_snapshot: &Snapshot,
-    violations: &mut Violations,
-) {
-    for (path, _checksum) in newer_snapshot.iter() {
-        let (_rule_repr, policy) = config.match_policy(path);
-        if policy == libzakocmp::config::POLICY_IGNORE {
-            continue;
-        }
-
-        match older_snapshot.get(path) {
-            Some(_older_checksum) => (),
-            None => {
-                if (policy & libzakocmp::config::POLICY_NOADD) != 0 {
-                    violations.add(path, libzakocmp::violations::ADDED).unwrap();
-                }
-            }
-        }
-    }
-}
-
 fn main() {
     let (config, older_snapshot, newer_snapshot) = match initialize() {
         Ok((c, o, n)) => (c, o, n),
@@ -107,10 +47,6 @@ fn main() {
         }
     };
     assert!(config.rules() > 0);
-
-    let mut violations = Violations::new();
-    check_modifications_and_deletions(&config, &older_snapshot, &newer_snapshot, &mut violations);
-    check_additions(&config, &older_snapshot, &newer_snapshot, &mut violations);
-
+    let violations = libzakocmp::enter(&config, &older_snapshot, &newer_snapshot);
     println!("{}", violations);
 }
