@@ -74,4 +74,24 @@ fn test_basic_default_immutability() {
             "#
         )
     );
+
+    // As an additional sanity check, verifies that zakocmp snapshots
+    // are not sensitive to the ordering of input files.
+    let shifty_newer_shuffled = Snapshot::new(&snapshot_string_for_testing(indoc!(
+        r#"
+        0000000000000000000000000000000000000000000000000000000000000000  ./e/f/unchanged
+        ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  ./i/j/changed
+        0000000000000000000000000000000000000000000000000000000000000000  ./k/l/unchanged
+        ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  ./a/b/changed
+        0000000000000000000000000000000000000000000000000000000000000000  ./g/h/unchanged
+        0000000000000000000000000000000000000000000000000000000000000000  ./c/d/unchanged
+        "#
+    )))
+    .unwrap();
+    let the_same_shifty_violations =
+        libzakocmp::enter(&config, &shifty_older, &shifty_newer_shuffled);
+    assert_eq!(
+        shifty_violations.to_string(),
+        the_same_shifty_violations.to_string()
+    );
 }
