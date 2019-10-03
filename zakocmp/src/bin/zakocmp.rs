@@ -1,12 +1,7 @@
-mod config;
-mod errors;
-mod snapshot;
-mod violations;
-
-use config::Config;
-use errors::ZakocmpError;
-use snapshot::Snapshot;
-use violations::Violations;
+use libzakocmp::config::Config;
+use libzakocmp::errors::ZakocmpError;
+use libzakocmp::snapshot::Snapshot;
+use libzakocmp::violations::Violations;
 
 use std::io::Read;
 use std::result::Result;
@@ -54,19 +49,24 @@ fn check_modifications_and_deletions(
 ) {
     for (path, checksum) in older_snapshot.iter() {
         let (_rule_repr, policy) = config.match_policy(path);
-        if policy == config::POLICY_IGNORE {
+        if policy == libzakocmp::config::POLICY_IGNORE {
             continue;
         }
 
         match newer_snapshot.get(path) {
             Some(newer_checksum) => {
-                if (policy & config::POLICY_NOMODIFY) != 0 && checksum != newer_checksum {
-                    violations.add(path, violations::MODIFIED).unwrap();
+                if (policy & libzakocmp::config::POLICY_NOMODIFY) != 0 && checksum != newer_checksum
+                {
+                    violations
+                        .add(path, libzakocmp::violations::MODIFIED)
+                        .unwrap();
                 }
             }
             None => {
-                if (policy & config::POLICY_NODELETE) != 0 {
-                    violations.add(path, violations::DELETED).unwrap();
+                if (policy & libzakocmp::config::POLICY_NODELETE) != 0 {
+                    violations
+                        .add(path, libzakocmp::violations::DELETED)
+                        .unwrap();
                 }
             }
         }
@@ -83,15 +83,15 @@ fn check_additions(
 ) {
     for (path, _checksum) in newer_snapshot.iter() {
         let (_rule_repr, policy) = config.match_policy(path);
-        if policy == config::POLICY_IGNORE {
+        if policy == libzakocmp::config::POLICY_IGNORE {
             continue;
         }
 
         match older_snapshot.get(path) {
             Some(_older_checksum) => (),
             None => {
-                if (policy & config::POLICY_NOADD) != 0 {
-                    violations.add(path, violations::ADDED).unwrap();
+                if (policy & libzakocmp::config::POLICY_NOADD) != 0 {
+                    violations.add(path, libzakocmp::violations::ADDED).unwrap();
                 }
             }
         }
