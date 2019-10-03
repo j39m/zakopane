@@ -15,6 +15,21 @@ const HEADER_LINES: usize = 3;
 // Defines the number of hex characters in a sha256sum.
 const CHECKSUM_CHARS: usize = 64;
 
+// Defines a valid zakopane snapshot header.
+const SNAPSHOT_HEADER_FOR_TESTING: &'static str = r#"simple-zakopane.sh: 2019-07-27-090032
+simple-zakopane.sh: /home/kalvin
+# this line is typically empty but must be present
+"#;
+
+// Accepts a borrowed string representation of some zakopane
+// checksums, prepends the standard zakopane snapshot header to the
+// same, and returns the owned result.
+pub fn snapshot_string_for_testing(checksums: &str) -> String {
+    let mut snapshot: String = SNAPSHOT_HEADER_FOR_TESTING.to_string();
+    snapshot.push_str(checksums);
+    snapshot
+}
+
 // Defines a zakopane snapshot, which maps paths to checksums.
 #[derive(Debug)]
 pub struct Snapshot {
@@ -94,21 +109,6 @@ impl Snapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // Defines a valid zakopane snapshot header.
-    const SNAPSHOT_HEADER_FOR_TESTING: &'static str = r#"simple-zakopane.sh: 2019-07-27-090032
-simple-zakopane.sh: /home/kalvin
-# this line is typically empty but must be present
-"#;
-
-    // Accepts a borrowed string representation of some zakopane
-    // checksums, prepends the standard zakopane snapshot header to the
-    // same, and returns the owned result.
-    fn snapshot_string_for_testing(checksums: &str) -> String {
-        let mut snapshot: String = SNAPSHOT_HEADER_FOR_TESTING.to_string();
-        snapshot.push_str(checksums);
-        snapshot
-    }
 
     // Consumes a ZakocmpError and borrows a string slice. Asserts that
     // the error is of the Snapshot variant and starts with the string
