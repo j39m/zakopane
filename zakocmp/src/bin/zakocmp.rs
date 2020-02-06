@@ -1,12 +1,17 @@
-use libzakocmp::config::Config;
-use libzakocmp::structs::ZakocmpError;
-use libzakocmp::snapshot::Snapshot;
-
 use std::io::Read;
-use std::result::Result;
-use std::string::String;
+
+use libzakocmp::config::Config;
+use libzakocmp::snapshot::Snapshot;
+use libzakocmp::structs::ZakocmpError;
 
 const USAGE_STRING: &'static str = "usage: zakocmp <config> <snapshot_older> <snapshot_newer>";
+
+// Holds one instance of each struct necessary to operate.
+struct OperationalData {
+    config: Config,
+    old_snapshot: Snapshot,
+    new_snapshot: Snapshot,
+}
 
 // Ingests the contents of a file.
 fn slurp_contents(path: &str) -> Result<String, ZakocmpError> {
@@ -18,35 +23,39 @@ fn slurp_contents(path: &str) -> Result<String, ZakocmpError> {
 }
 
 // Collects all arguments, reads all file contents, and coerces them
-// into the appropriate types. Returns tuple of the Config, the older
-// Snapshot, and the newer Snapshot (i.e. in the order given on the
-// command line).
-fn initialize() -> Result<(Config, Snapshot, Snapshot), ZakocmpError> {
+// into the appropriate types.
+fn initialize() -> Result<OperationalData, ZakocmpError> {
     let args: std::vec::Vec<std::string::String> = std::env::args().collect();
     if args.len() != 4 {
         return Err(ZakocmpError::Unknown(USAGE_STRING.to_string()));
     }
 
     let config_contents = slurp_contents(&args[1])?;
-    let older_contents = slurp_contents(&args[2])?;
-    let newer_contents = slurp_contents(&args[3])?;
+    let old_contents = slurp_contents(&args[2])?;
+    let new_contents = slurp_contents(&args[3])?;
 
-    let config = Config::new(&config_contents)?;
-    let older_snapshot = Snapshot::new(&older_contents)?;
-    let newer_snapshot = Snapshot::new(&newer_contents)?;
-
-    Ok((config, older_snapshot, newer_snapshot))
+    Ok(OperationalData {
+        config: Config::new(&config_contents)?,
+        old_snapshot: Snapshot::new(&old_contents)?,
+        new_snapshot: Snapshot::new(&new_contents)?,
+    })
 }
 
 fn main() {
-    let (config, older_snapshot, newer_snapshot) = match initialize() {
-        Ok((c, o, n)) => (c, o, n),
+    let operational_data = match initialize() {
+        Ok(data) => data,
         Err(error) => {
             eprintln!("{}", error.to_string());
             std::process::exit(1);
         }
     };
+
+    let OperationalData {
+        config,
+        new_snapshot,
+        old_snapshot,
+    } = operational_data;
     assert!(config.rules() > 0);
-    let violations = libzakocmp::enter(&config, &older_snapshot, &newer_snapshot);
+    let violations = libzakocmp::enter(&config, &old_snapshot, &new_snapshot);
     println!("{}", violations);
 }
