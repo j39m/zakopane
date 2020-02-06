@@ -1,5 +1,5 @@
 pub mod config;
-pub mod errors;
+pub mod structs;
 pub mod snapshot;
 pub mod violations;
 

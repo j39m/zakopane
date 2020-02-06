@@ -2,7 +2,7 @@
 // violations - i.e. human-readable descriptions of notable
 // discrepancies between zakocmp snapshots.
 
-use crate::errors::ZakocmpError;
+use crate::structs::ZakocmpError;
 
 // Represents possible policy violations as caller-passable ints.
 pub const ADDED: i32 = 0;

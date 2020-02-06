@@ -1,4 +1,5 @@
-// This module defines a unified error type used across zakocmp.
+// This module defines miscellaneous, non-specialized structs that can
+// appear anywhere in the crate.
 
 use std::string::String;
 

@@ -7,7 +7,7 @@ use std::result::Result;
 use std::str::Lines;
 use std::string::String;
 
-use crate::errors::ZakocmpError;
+use crate::structs::ZakocmpError;
 
 // Defines the number of lines preceding the actual checksum content.
 const HEADER_LINES: usize = 3;

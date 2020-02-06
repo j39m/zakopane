@@ -1,5 +1,5 @@
 use libzakocmp::config::Config;
-use libzakocmp::errors::ZakocmpError;
+use libzakocmp::structs::ZakocmpError;
 use libzakocmp::snapshot::Snapshot;
 
 use std::io::Read;
