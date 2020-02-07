@@ -226,11 +226,10 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use indoc::indoc;
     use std::path::PathBuf;
 
     // Creates a CliOptions instance for testing.
-    fn options_for_testing<'a>(
+    pub fn options_for_testing<'a>(
         config_path: Option<&'a str>,
         default_policy: Option<&'a str>,
     ) -> CliOptions<'a> {
@@ -243,7 +242,7 @@ mod tests {
     }
 
     // Returns |path| with the cargo test data directory prepended.
-    fn path_for_testing(path: &str) -> PathBuf {
+    pub fn path_for_testing(path: &str) -> PathBuf {
         let mut result = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         result.push("config-test-data/");
         result.push(path);
@@ -294,7 +293,7 @@ mod tests {
 
         // Tests that a default policy presented on the command-line
         // takes precedence over a written default policy.
-        let config_path = path_for_testing("config-with-default-policy");
+        let config_path = path_for_testing("config-with-default-and-extra-policy");
         // Simulates an invocation in which "noadd" was given as the
         // default policy. The referenced config file uses "ignore"
         // ATOW, and the command-line "noadd" will win aganist it.
@@ -303,56 +302,45 @@ mod tests {
         let noadd_is_default = Config::new(&default_policy_on_cli_options).unwrap();
         assert!(noadd_is_default.rules() == 2);
         assert!(noadd_is_default.match_policy("") == ("", POLICY_NOADD));
-        assert!(noadd_is_default.match_policy("hello/there/general-kenobi") == ("hello/there", POLICY_IMMUTABLE));
+        assert!(
+            noadd_is_default.match_policy("hello/there/general-kenobi")
+                == ("hello/there", POLICY_IMMUTABLE)
+        );
+
+        // Tests that a written default policy emerges absent explicit
+        // specification on the command-line.
+        let default_policy_in_yaml_options =
+            options_for_testing(Some(config_path.to_str().unwrap()), None);
+        let ignore_is_default = Config::new(&default_policy_in_yaml_options).unwrap();
+        assert!(ignore_is_default.rules() == 2);
+        assert!(ignore_is_default.match_policy("") == ("", POLICY_IGNORE));
+        assert!(
+            noadd_is_default.match_policy("hello/there/general-kenobi")
+                == ("hello/there", POLICY_IMMUTABLE)
+        );
     }
 
     #[test]
     fn config_might_not_have_specific_policies() {
-        let config = indoc!(
-            r#"
-            default-policy: nodelete
-            one-irrelevant-key: it doesn't matter what we put here
-            another-irrelevant-key: this doesn't invalidate the YAML
-            third-irrelevant-key: so long as it contains a default-policy
-        "#
-        );
-        assert!(Config::new_for_testing(&config).is_ok());
+        let config_path = path_for_testing("config-without-specific-policies");
+        let options = options_for_testing(Some(config_path.to_str().unwrap()), None);
+        let config = Config::new(&options).unwrap();
+        assert!(config.rules() == 1);
+        assert!(config.match_policy("") == ("", POLICY_NODELETE));
     }
 
     #[test]
     fn config_policies_must_be_a_map() {
-        let config = indoc!(
-            r#"
-            default-policy: noadd
-            policies:
-                -   eh?
-                -   this ain't a map
-        "#
-        );
-        assert!(Config::new_for_testing(&config).is_err());
-    }
-
-    #[test]
-    fn config_can_have_several_policies() {
-        let config = indoc!(
-            r#"
-            default-policy: immutable
-            policies:
-                hello-there: noadd
-                general-kenobi: nodelete
-        "#
-        );
-        assert!(Config::new_for_testing(&config).is_ok());
+        let config_path = path_for_testing("config-with-ill-formed-policies");
+        let options = options_for_testing(Some(config_path.to_str().unwrap()), None);
+        assert!(Config::new(&options).is_err());
     }
 
     #[test]
     fn match_default_policy() {
-        let config_yaml = indoc!(
-            r#"
-            default-policy: noadd
-        "#
-        );
-        let config = Config::new_for_testing(&config_yaml).unwrap();
+        let config_path = path_for_testing("config-without-specific-policies");
+        let options = options_for_testing(Some(config_path.to_str().unwrap()), None);
+        let config = Config::new(&options).unwrap();
 
         // With only a default policy, this config has just 1 rule.
         assert_eq!(config.rules(), 1);
@@ -360,24 +348,16 @@ mod tests {
         // Any path prefix we throw at match_policy() shall come up
         // as the default policy.
         let (_path, policy) = config.match_policy("./Documents/hello/there.txt");
-        assert_eq!(policy, POLICY_NOADD);
+        assert_eq!(policy, POLICY_NODELETE);
         let (_path, policy) = config.match_policy("./Music/general/kenobi.txt");
-        assert_eq!(policy, POLICY_NOADD);
+        assert_eq!(policy, POLICY_NODELETE);
     }
 
     #[test]
     fn match_nondefault_policies() {
-        let config_yaml = indoc!(
-            r#"
-            default-policy: immutable
-            policies:
-                ./Pictures/: noadd
-                ./Pictures/2019/third-party/: nodelete
-                ./Pictures/2020/: nomodify
-                ./Pictures/2020/food/: nodelete,nomodify
-        "#
-        );
-        let config = Config::new_for_testing(&config_yaml).unwrap();
+        let config_path = path_for_testing("config-with-several-policies");
+        let options = options_for_testing(Some(config_path.to_str().unwrap()), None);
+        let config = Config::new(&options).unwrap();
 
         assert_eq!(config.rules(), 5);
 

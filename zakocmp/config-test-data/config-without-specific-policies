@@ -1,0 +1,4 @@
+default-policy: nodelete
+one-irrelevant-key: it doesn't matter what we put here
+another-irrelevant-key: this doesn't invalidate the YAML
+third-irrelevant-key: so long as it contains a default-policy

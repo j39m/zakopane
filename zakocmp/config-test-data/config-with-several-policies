@@ -1,0 +1,6 @@
+default-policy: immutable
+policies:
+    ./Pictures/: noadd
+    ./Pictures/2019/third-party/: nodelete
+    ./Pictures/2020/: nomodify
+    ./Pictures/2020/food/: nodelete,nomodify
