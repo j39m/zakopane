@@ -1,7 +1,6 @@
-use std::io::Read;
-
 use libzakocmp::config::Config;
 use libzakocmp::snapshot::Snapshot;
+use libzakocmp::structs::CliOptions;
 use libzakocmp::structs::ZakocmpError;
 
 const USAGE_STRING: &'static str = "usage: zakocmp <config> <snapshot_older> <snapshot_newer>";
@@ -13,15 +12,6 @@ struct OperationalData {
     new_snapshot: Snapshot,
 }
 
-// Ingests the contents of a file.
-fn slurp_contents(path: &str) -> Result<String, ZakocmpError> {
-    let mut file = std::fs::File::open(std::path::Path::new(path)).map_err(ZakocmpError::Io)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .map_err(ZakocmpError::Io)?;
-    Ok(contents)
-}
-
 // Collects all arguments, reads all file contents, and coerces them
 // into the appropriate types.
 fn initialize() -> Result<OperationalData, ZakocmpError> {
@@ -30,12 +20,18 @@ fn initialize() -> Result<OperationalData, ZakocmpError> {
         return Err(ZakocmpError::Unknown(USAGE_STRING.to_string()));
     }
 
-    let config_contents = slurp_contents(&args[1])?;
-    let old_contents = slurp_contents(&args[2])?;
-    let new_contents = slurp_contents(&args[3])?;
+    let options = CliOptions {
+        old_snapshot_path: &args[2],
+        new_snapshot_path: &args[3],
+        config_path: Some(&args[1]),
+        default_policy: None,
+    };
+
+    let old_contents = libzakocmp::helpers::ingest_file(&args[2])?;
+    let new_contents = libzakocmp::helpers::ingest_file(&args[3])?;
 
     Ok(OperationalData {
-        config: Config::new(&config_contents)?,
+        config: Config::new(&options)?,
         old_snapshot: Snapshot::new(&old_contents)?,
         new_snapshot: Snapshot::new(&new_contents)?,
     })

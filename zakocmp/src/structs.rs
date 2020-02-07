@@ -28,12 +28,12 @@ impl std::fmt::Display for ZakocmpError {
 }
 
 #[derive(Debug)]
-pub struct CliOptions {
+pub struct CliOptions<'a> {
     // Every zakocmp run requires two snapshots to compare.
-    old_snapshot_path: String,
-    new_snapshot_path: String,
+    pub old_snapshot_path: &'a str,
+    pub new_snapshot_path: &'a str,
     // A config file with policies is optional.
-    config_path: Option<String>,
+    pub config_path: Option<&'a str>,
     // A default policy on the command-line is optional.
-    default_policy: Option<String>,
+    pub default_policy: Option<&'a str>,
 }

@@ -7,15 +7,18 @@
 ```sh
 # Compares zakopane snapshots <before> and <after> using rules defined
 # defined in <config>.
-# All arguments are required.
-zakocmp <config> <before> <after>
+# The <config> is optional.
+zakocmp --config <config> <before> <after>
 ```
 
 ## The config file
 
 A `zakocmp` config file is a YAML document comprising
-*   at least a default policy and
-*   optionally more specific policies.
+*   a default policy and
+*   more specific policies.
+
+Both are optional; in fact, empty YAML documents and YAML dictionaries
+with irrelevant keys will be treated as no-op (but valid) configs.
 
 ### Policy appendix
 
@@ -31,14 +34,21 @@ Policies are joined together (without spaces) by a comma as in the
 definition of the `immutable` policy. Order and repetition do not
 matter.
 
+### The default policy
+
+`zakocmp` determines the default policy
+
+1.  by looking for it on the command-line (`--default-policy` or `-d`),
+1.  by looking for it in the config file (if given), and
+1.  finally by falling back to a hardcoded default of `immutable`.
+
 ### Examples
 
 ```yaml
-# This specification is always necessary - even if you just want to
-# ignore everything not covered by a specific policy.
+# Anything not covered by a specific policy should be ignored.
 default-policy: ignore
 
-# This specification is optional, but must be well-formed if present.
+# We only care about paths spelling out prequel memes, it seems.
 policies:
     ./Documents/hello/there: nomodify,nodelete
     ./Documents/general/kenobi: noadd,nodelete

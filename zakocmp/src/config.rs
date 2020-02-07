@@ -1,13 +1,21 @@
 // This module defines constants and functions for working with zakocmp
 // configuration files.
 
+use std::clone::Clone;
 use std::error::Error;
-use std::result::Result;
-use std::string::String;
-use std::vec::Vec;
+
 use yaml_rust::{Yaml, YamlLoader};
 
+use crate::structs::CliOptions;
 use crate::structs::ZakocmpError;
+
+// Represents a single zakopane config policy.
+type Policy = i32;
+
+// Represents a sorted vector of zakopane config rules, each mapping a
+// path (prefix) to a policy. This type alias is provided for ease of
+// coding.
+type Policies = Vec<(String, Policy)>;
 
 const DEFAULT_POLICY_KEY: &'static str = "default-policy";
 const POLICIES_KEY: &'static str = "policies";
@@ -19,27 +27,22 @@ const POLICY_REPR_NODELETE: &'static str = "nodelete";
 const POLICY_REPR_NOMODIFY: &'static str = "nomodify";
 const POLICY_REPR_IMMUTABLE: &'static str = "immutable";
 
-// Represents known policies as integers.
-pub const POLICY_IGNORE: i32 = 0;
-pub const POLICY_NOADD: i32 = 1 << 0;
-pub const POLICY_NODELETE: i32 = 1 << 1;
-pub const POLICY_NOMODIFY: i32 = 1 << 2;
-pub const POLICY_IMMUTABLE: i32 = POLICY_NOADD | POLICY_NODELETE | POLICY_NOMODIFY;
-
-// Represents a sorted vector of zakopane config rules, each mapping a
-// path (prefix) to a policy. This type alias is provided for ease of
-// coding.
-type Policies = Vec<(String, i32)>;
+// Represents known policies as an integral type.
+pub const POLICY_IGNORE: Policy = 0;
+pub const POLICY_NOADD: Policy = 1 << 0;
+pub const POLICY_NODELETE: Policy = 1 << 1;
+pub const POLICY_NOMODIFY: Policy = 1 << 2;
+pub const POLICY_IMMUTABLE: Policy = POLICY_NOADD | POLICY_NODELETE | POLICY_NOMODIFY;
 
 // Represents a zakopane config. Please consult the documentation.
 pub struct Config {
-    default_policy: i32,
+    default_policy: Policy,
     policies: Policies,
 }
 
 // Borrows the string representation of one policy `token` and returns
 // the equivalent integral representation.
-fn policy_token_as_int(token: &str) -> Result<i32, ZakocmpError> {
+fn policy_token_as_int(token: &str) -> Result<Policy, ZakocmpError> {
     match token {
         POLICY_REPR_IGNORE => Ok(POLICY_IGNORE),
         POLICY_REPR_NOADD => Ok(POLICY_NOADD),
@@ -53,11 +56,11 @@ fn policy_token_as_int(token: &str) -> Result<i32, ZakocmpError> {
 // Borrows the string representation of a combined `policy` and returns
 // the equivalent integral representation. This function expects
 // `policy` to comprise one or more policy tokens separated by commas.
-fn policy_tokens_as_int(policy: &str) -> Result<i32, ZakocmpError> {
-    let policy_ints: Vec<i32> = policy
+fn policy_tokens_as_int(policy: &str) -> Result<Policy, ZakocmpError> {
+    let policy_ints: Vec<Policy> = policy
         .split(",")
         .map(|tok| policy_token_as_int(tok))
-        .collect::<Result<Vec<i32>, ZakocmpError>>()?;
+        .collect::<Result<Vec<Policy>, ZakocmpError>>()?;
     Ok(policy_ints
         .iter()
         .fold(POLICY_IGNORE, |accum, elem| accum | elem))
@@ -66,12 +69,15 @@ fn policy_tokens_as_int(policy: &str) -> Result<i32, ZakocmpError> {
 // Borrows yaml representations of one line of zakopane policy and
 // returns the corresponding valid tuple suitable for use in building a
 // Policies object.
-fn extract_policy(ypath: &Yaml, policy_tokens: &Yaml) -> Result<(String, i32), ZakocmpError> {
+fn policy_tuple_from_yaml(
+    ypath: &Yaml,
+    policy_tokens: &Yaml,
+) -> Result<(String, Policy), ZakocmpError> {
     let path: String = match ypath.as_str() {
         Some(string) => string.to_owned(),
         None => return Err(ZakocmpError::Config("malformed path?".to_string())),
     };
-    let policy: i32 = match policy_tokens.as_str() {
+    let policy: Policy = match policy_tokens.as_str() {
         Some(string) => policy_tokens_as_int(string)?,
         None => return Err(ZakocmpError::Config("malformed policy?".to_string())),
     };
@@ -97,7 +103,7 @@ fn policies_from_yaml(doc: &Yaml) -> Result<Policies, ZakocmpError> {
     };
     let mut policies: Policies = policies_map
         .into_iter()
-        .map(|pair| extract_policy(&pair.0, &pair.1))
+        .map(|pair| policy_tuple_from_yaml(&pair.0, &pair.1))
         .collect::<Result<Policies, ZakocmpError>>()?;
     policies.sort_unstable_by_key(|pair| pair.0.to_owned());
     Ok(policies)
@@ -105,33 +111,61 @@ fn policies_from_yaml(doc: &Yaml) -> Result<Policies, ZakocmpError> {
 
 // Borrows the YAML representation of a zakopane config and returns the
 // integral default-policy defined within.
-fn default_policy_from_yaml(doc: &Yaml) -> Result<i32, ZakocmpError> {
+fn default_policy_from_yaml(doc: &Yaml) -> Result<Policy, ZakocmpError> {
     let default_policy_yaml = &doc[DEFAULT_POLICY_KEY];
     if default_policy_yaml.is_badvalue() {
         return Err(ZakocmpError::Config(DEFAULT_POLICY_KEY.to_string()));
     }
-    let default_policy: i32 = match default_policy_yaml.as_str() {
+    let default_policy: Policy = match default_policy_yaml.as_str() {
         None => return Err(ZakocmpError::Config(DEFAULT_POLICY_KEY.to_string())),
         Some(token) => policy_tokens_as_int(&token),
     }?;
     Ok(default_policy)
 }
 
+// Reads contents of |config_path|, interprets it as YAML, and returns
+// the first document within.
+fn read_yaml(config_path: &str) -> Result<Yaml, ZakocmpError> {
+    let config = crate::helpers::ingest_file(config_path)?;
+    let docs: Vec<Yaml> =
+        YamlLoader::load_from_str(&config).map_err(|scan_error: yaml_rust::ScanError| {
+            ZakocmpError::Config(scan_error.description().to_string())
+        })?;
+    Ok(docs[0].clone())
+}
+
+// Returns the default policy for this invocation.
+fn get_default_policy(
+    options: &CliOptions,
+    yaml_config: &Option<Yaml>,
+) -> Result<Policy, ZakocmpError> {
+    if let Some(default_from_cli) = options.default_policy {
+        return policy_tokens_as_int(default_from_cli);
+    } else if let Some(yaml) = yaml_config {
+        return default_policy_from_yaml(yaml);
+    }
+    Ok(POLICY_IMMUTABLE)
+}
+
+// Returns any additional policies for this invocation.
+fn get_policies(yaml_config: &Option<Yaml>) -> Result<Policies, ZakocmpError> {
+    match yaml_config {
+        Some(doc) => policies_from_yaml(doc),
+        None => Ok(Policies::new()),
+    }
+}
+
 impl Config {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding Config.
-    pub fn new(config: &str) -> Result<Config, ZakocmpError> {
-        let docs: Vec<Yaml> =
-            YamlLoader::load_from_str(config).map_err(|scan_error: yaml_rust::ScanError| {
-                ZakocmpError::Config(scan_error.description().to_string())
-            })?;
-        if docs.len() == 0 {
-            return Err(ZakocmpError::Config("empty zakopane config".to_string()));
-        }
-        let doc = &docs[0];
+    pub fn new(options: &CliOptions) -> Result<Config, ZakocmpError> {
+        let yaml_config: Option<Yaml> = match options.config_path {
+            Some(path) => Some(read_yaml(path)?),
+            None => None,
+        };
 
-        let default_policy = default_policy_from_yaml(&doc)?;
-        let policies: Policies = policies_from_yaml(&doc)?;
+        let default_policy = get_default_policy(&options, &yaml_config)?;
+        let policies = get_policies(&yaml_config)?;
 
         Ok(Config {
             default_policy: default_policy,
@@ -152,9 +186,9 @@ impl Config {
     // This function represents the default-policy fallback by
     // returning the tuple consisting of an empty &str and the
     // default policy.
-    pub fn match_policy(&self, path: &str) -> (&str, i32) {
+    pub fn match_policy(&self, path: &str) -> (&str, Policy) {
         let mut best_match_path: &str = "";
-        let mut best_match_policy: i32 = 0;
+        let mut best_match_policy: Policy = 0;
         for (prefix, policy) in self.policies.iter() {
             if path.starts_with(prefix) && prefix.len() > best_match_path.len() {
                 best_match_path = prefix;
@@ -174,25 +208,25 @@ mod tests {
 
     #[test]
     fn policy_token_bare() {
-        let policy: i32 = policy_tokens_as_int(&"noadd").unwrap();
+        let policy: Policy = policy_tokens_as_int(&"noadd").unwrap();
         assert_eq!(policy, POLICY_NOADD);
 
-        let policy: i32 = policy_tokens_as_int(&"nodelete").unwrap();
+        let policy: Policy = policy_tokens_as_int(&"nodelete").unwrap();
         assert_eq!(policy, POLICY_NODELETE);
 
-        let policy: i32 = policy_tokens_as_int(&"nomodify").unwrap();
+        let policy: Policy = policy_tokens_as_int(&"nomodify").unwrap();
         assert_eq!(policy, POLICY_NOMODIFY);
     }
 
     #[test]
     fn policy_tokens_can_combo() {
-        let policy: i32 = policy_tokens_as_int(&"noadd,nodelete").unwrap();
+        let policy: Policy = policy_tokens_as_int(&"noadd,nodelete").unwrap();
         assert_eq!(policy, POLICY_NOADD | POLICY_NODELETE);
     }
 
     #[test]
     fn policy_tokens_can_repeat() {
-        let policy: i32 =
+        let policy: Policy =
             policy_tokens_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd")
                 .unwrap();
         assert_eq!(policy, POLICY_NOADD | POLICY_NODELETE);
