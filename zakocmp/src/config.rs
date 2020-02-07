@@ -123,15 +123,19 @@ fn default_policy_from_yaml(doc: &Yaml) -> Result<Policy, ZakocmpError> {
     Ok(default_policy)
 }
 
-// Reads contents of |config_path|, interprets it as YAML, and returns
-// the first document within.
-fn read_yaml(config_path: &str) -> Result<Yaml, ZakocmpError> {
-    let config = crate::helpers::ingest_file(config_path)?;
-    let docs: Vec<Yaml> =
-        YamlLoader::load_from_str(&config).map_err(|scan_error: yaml_rust::ScanError| {
+// Interprets |config_contents| as YAML and returns the first document
+// within (if present).
+fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakocmpError> {
+    let docs: Vec<Yaml> = YamlLoader::load_from_str(&config_contents).map_err(
+        |scan_error: yaml_rust::ScanError| {
             ZakocmpError::Config(scan_error.description().to_string())
-        })?;
-    Ok(docs[0].clone())
+        },
+    )?;
+    // Explicitly allow empty configs.
+    if docs.len() == 0 {
+        return Ok(None);
+    }
+    Ok(Some(docs[0].clone()))
 }
 
 // Returns the default policy for this invocation.
@@ -160,7 +164,10 @@ impl Config {
     // returns a corresponding Config.
     pub fn new(options: &CliOptions) -> Result<Config, ZakocmpError> {
         let yaml_config: Option<Yaml> = match options.config_path {
-            Some(path) => Some(read_yaml(path)?),
+            Some(path) => {
+                let config = crate::helpers::ingest_file(path)?;
+                read_yaml(&config)?
+            }
             None => None,
         };
 
@@ -173,8 +180,22 @@ impl Config {
         })
     }
 
+    pub fn new_for_testing(config_str: &str) -> Result<Config, ZakocmpError> {
+        let yaml_config: Option<Yaml> = read_yaml(config_str)?;
+        if let Some(yaml) = yaml_config {
+            return Ok(Config {
+                default_policy: default_policy_from_yaml(&yaml)?,
+                policies: policies_from_yaml(&yaml)?,
+            });
+        }
+        Ok(Config {
+            default_policy: POLICY_IMMUTABLE,
+            policies: Policies::new(),
+        })
+    }
+
     // Returns how many rules this config contains.
-    // This is never less than 1 as a default-policy is always required.
+    // This is never less than 1 as a default-policy is always present.
     pub fn rules(&self) -> usize {
         1 + self.policies.len()
     }
@@ -206,6 +227,8 @@ impl Config {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
     #[test]
     fn policy_token_bare() {
         let policy: Policy = policy_tokens_as_int(&"noadd").unwrap();
@@ -233,75 +256,83 @@ mod tests {
     }
 
     #[test]
-    fn config_must_not_be_empty() {
-        let config = "";
-        assert!(Config::new(&config).is_err());
-    }
-
-    #[test]
     fn config_must_not_be_obviously_malformed() {
-        let config = r#"
-This is not a zakopane config -
-rather, it's two lines of text.
-        "#;
-        assert!(Config::new(&config).is_err());
+        let config = indoc!(
+            r#"
+            This is not a zakopane config -
+            rather, it's two lines of text.
+        "#
+        );
+        assert!(Config::new_for_testing(&config).is_err());
     }
 
     #[test]
     fn config_requires_default_policy() {
-        let config = r#"
-policies:
-    hello-there: nomodify
-        "#;
-        assert!(Config::new(&config).is_err());
-
-        let mut config_with_default_policy: String = r#"
-default-policy: immutable
+        let config = indoc!(
+            r#"
+            policies:
+                hello-there: nomodify
         "#
+        );
+        assert!(Config::new_for_testing(&config).is_err());
+
+        let mut config_with_default_policy: String = indoc!(
+            r#"
+            default-policy: immutable
+        "#
+        )
         .to_string();
         config_with_default_policy.push_str(&config);
-        assert!(Config::new(&config_with_default_policy).is_ok())
+        assert!(Config::new_for_testing(&config_with_default_policy).is_ok())
     }
 
     #[test]
     fn config_might_not_have_specific_policies() {
-        let config = r#"
-default-policy: nodelete
-one-irrelevant-key: it doesn't matter what we put here
-another-irrelevant-key: this doesn't invalidate the YAML
-third-irrelevant-key: so long as it contains a default-policy
-        "#;
-        assert!(Config::new(&config).is_ok());
+        let config = indoc!(
+            r#"
+            default-policy: nodelete
+            one-irrelevant-key: it doesn't matter what we put here
+            another-irrelevant-key: this doesn't invalidate the YAML
+            third-irrelevant-key: so long as it contains a default-policy
+        "#
+        );
+        assert!(Config::new_for_testing(&config).is_ok());
     }
 
     #[test]
     fn config_policies_must_be_a_map() {
-        let config = r#"
-default-policy: noadd
-policies:
-    -   eh?
-    -   this ain't a map
-        "#;
-        assert!(Config::new(&config).is_err());
+        let config = indoc!(
+            r#"
+            default-policy: noadd
+            policies:
+                -   eh?
+                -   this ain't a map
+        "#
+        );
+        assert!(Config::new_for_testing(&config).is_err());
     }
 
     #[test]
     fn config_can_have_several_policies() {
-        let config = r#"
-default-policy: immutable
-policies:
-    hello-there: noadd
-    general-kenobi: nodelete
-        "#;
-        assert!(Config::new(&config).is_ok());
+        let config = indoc!(
+            r#"
+            default-policy: immutable
+            policies:
+                hello-there: noadd
+                general-kenobi: nodelete
+        "#
+        );
+        assert!(Config::new_for_testing(&config).is_ok());
     }
 
     #[test]
     fn match_default_policy() {
-        let config_yaml = r#"
-default-policy: noadd
-        "#;
-        let config = Config::new(&config_yaml).unwrap();
+        let config_yaml = indoc!(
+            r#"
+            default-policy: noadd
+        "#
+        );
+        let config = Config::new_for_testing(&config_yaml).unwrap();
 
         // With only a default policy, this config has just 1 rule.
         assert_eq!(config.rules(), 1);
@@ -316,15 +347,17 @@ default-policy: noadd
 
     #[test]
     fn match_nondefault_policies() {
-        let config_yaml = r#"
-default-policy: immutable
-policies:
-    ./Pictures/: noadd
-    ./Pictures/2019/third-party/: nodelete
-    ./Pictures/2020/: nomodify
-    ./Pictures/2020/food/: nodelete,nomodify
-        "#;
-        let config = Config::new(&config_yaml).unwrap();
+        let config_yaml = indoc!(
+            r#"
+            default-policy: immutable
+            policies:
+                ./Pictures/: noadd
+                ./Pictures/2019/third-party/: nodelete
+                ./Pictures/2020/: nomodify
+                ./Pictures/2020/food/: nodelete,nomodify
+        "#
+        );
+        let config = Config::new_for_testing(&config_yaml).unwrap();
 
         assert_eq!(config.rules(), 5);
 

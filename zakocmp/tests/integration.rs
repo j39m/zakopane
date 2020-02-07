@@ -10,7 +10,7 @@ use libzakocmp::snapshot::Snapshot;
 
 #[test]
 fn test_basic_default_immutability() {
-    let config: Config = Config::new(r#"default-policy: immutable"#).unwrap();
+    let config: Config = Config::new_for_testing(r#"default-policy: immutable"#).unwrap();
 
     // Verifies that empty snapshots never turn up violations.
     let empty_older = Snapshot::new(&snapshot_string_for_testing("")).unwrap();
@@ -98,7 +98,7 @@ fn test_basic_default_immutability() {
 
 #[test]
 fn test_overlapping_prefixes() {
-    let config = Config::new(
+    let config = Config::new_for_testing(
         r#"
     default-policy: immutable
     policies:
