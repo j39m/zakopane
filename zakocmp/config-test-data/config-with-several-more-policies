@@ -1,0 +1,5 @@
+default-policy: immutable
+policies:
+    ./Pictures/: immutable
+    ./Pictures/2020/: ignore
+    ./Documents/: nodelete
