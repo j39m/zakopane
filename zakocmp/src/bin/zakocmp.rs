@@ -44,7 +44,7 @@ fn initialize() -> Result<OperationalData, ZakocmpError> {
     let matches = App::new("zakocmp")
         .version("0.2.0")
         .author("j39m")
-        .about("compares zakocmp snapshots")
+        .about("compares zakopane snapshots")
         .arg(
             Arg::with_name(CONFIG_FILE_ARG_NAME)
                 .short("c")
