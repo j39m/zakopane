@@ -28,10 +28,8 @@ impl std::fmt::Display for ZakocmpError {
 }
 
 #[derive(Debug)]
+// Snapshot files are ingested early on and not stored here.
 pub struct CliOptions<'a> {
-    // Every zakocmp run requires two snapshots to compare.
-    pub old_snapshot_path: &'a str,
-    pub new_snapshot_path: &'a str,
     // A config file with policies is optional.
     pub config_path: Option<&'a str>,
     // A default policy on the command-line is optional.

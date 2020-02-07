@@ -1,6 +1,6 @@
 [package]
 name = "zakocmp"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["j39m"]
 edition = "2018"
 
@@ -13,5 +13,6 @@ name = "zakocmp"
 path = "src/bin/zakocmp.rs"
 
 [dependencies]
-yaml-rust = "0.4"
-indoc = "0.3"
+yaml-rust = "^0"
+indoc = "^0"
+clap = "^2"

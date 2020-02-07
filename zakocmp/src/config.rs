@@ -219,8 +219,6 @@ pub mod test_support {
         default_policy: Option<&'a str>,
     ) -> CliOptions<'a> {
         CliOptions {
-            old_snapshot_path: "",
-            new_snapshot_path: "",
             config_path: config_path,
             default_policy: default_policy,
         }
