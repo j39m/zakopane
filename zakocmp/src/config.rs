@@ -1,8 +1,6 @@
 // This module defines constants and functions for working with zakocmp
 // configuration files.
 
-extern crate yaml_rust;
-
 use std::error::Error;
 use std::result::Result;
 use std::string::String;

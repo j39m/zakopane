@@ -174,8 +174,7 @@ simple-zakopane.sh: /home/kalvin
 
     #[test]
     fn snapshot_paths_may_not_repeat() {
-        let checksums =
-            r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ./hello/there.txt
+        let checksums = r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ./hello/there.txt
 0000000000000000000000000000000000000000000000000000000000000000  ./hello/there.txt"#;
         // The point of this test is not to catch identical checksums
         // (which occur naturally if you ever accidentally duplicate

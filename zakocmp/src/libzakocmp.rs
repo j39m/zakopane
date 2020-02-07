@@ -1,6 +1,6 @@
 pub mod config;
-pub mod structs;
 pub mod snapshot;
+pub mod structs;
 pub mod violations;
 
 use config::Config;

@@ -1,9 +1,9 @@
 // This integration test suite relies heavily on the string
 // representation of the Violations struct, as that's the final
 // user-visible output that the zakocmp binary presents.
-extern crate indoc;
 
 use indoc::indoc;
+
 use libzakocmp::config::Config;
 use libzakocmp::snapshot::snapshot_string_for_testing;
 use libzakocmp::snapshot::Snapshot;
