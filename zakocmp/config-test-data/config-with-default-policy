@@ -1,0 +1,3 @@
+default-policy: ignore
+policies:
+    hello/there: immutable

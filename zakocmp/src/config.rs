@@ -226,8 +226,29 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use indoc::indoc;
+    use std::path::PathBuf;
+
+    // Creates a CliOptions instance for testing.
+    fn options_for_testing<'a>(
+        config_path: Option<&'a str>,
+        default_policy: Option<&'a str>,
+    ) -> CliOptions<'a> {
+        CliOptions {
+            old_snapshot_path: "",
+            new_snapshot_path: "",
+            config_path: config_path,
+            default_policy: default_policy,
+        }
+    }
+
+    // Returns |path| with the cargo test data directory prepended.
+    fn path_for_testing(path: &str) -> PathBuf {
+        let mut result = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        result.push("config-test-data/");
+        result.push(path);
+        result
+    }
 
     #[test]
     fn policy_token_bare() {
@@ -257,33 +278,32 @@ mod tests {
 
     #[test]
     fn config_must_not_be_obviously_malformed() {
-        let config = indoc!(
-            r#"
-            This is not a zakopane config -
-            rather, it's two lines of text.
-        "#
-        );
-        assert!(Config::new_for_testing(&config).is_err());
+        let config_path = path_for_testing("flagrantly-invalid-yaml");
+        let options = options_for_testing(Some(config_path.to_str().unwrap()), None);
+        assert!(Config::new(&options).is_err());
     }
 
     #[test]
-    fn config_requires_default_policy() {
-        let config = indoc!(
-            r#"
-            policies:
-                hello-there: nomodify
-        "#
-        );
-        assert!(Config::new_for_testing(&config).is_err());
+    fn config_has_default_policy() {
+        // In case no configuration is provided at all, the Config
+        // struct is still well-defined.
+        let empty_options = options_for_testing(None, None);
+        let unopinionated_config = Config::new(&empty_options).unwrap();
+        assert!(unopinionated_config.rules() == 1);
+        assert!(unopinionated_config.match_policy("") == ("", POLICY_IMMUTABLE));
 
-        let mut config_with_default_policy: String = indoc!(
-            r#"
-            default-policy: immutable
-        "#
-        )
-        .to_string();
-        config_with_default_policy.push_str(&config);
-        assert!(Config::new_for_testing(&config_with_default_policy).is_ok())
+        // Tests that a default policy presented on the command-line
+        // takes precedence over a written default policy.
+        let config_path = path_for_testing("config-with-default-policy");
+        // Simulates an invocation in which "noadd" was given as the
+        // default policy. The referenced config file uses "ignore"
+        // ATOW, and the command-line "noadd" will win aganist it.
+        let default_policy_on_cli_options =
+            options_for_testing(Some(config_path.to_str().unwrap()), Some("noadd"));
+        let noadd_is_default = Config::new(&default_policy_on_cli_options).unwrap();
+        assert!(noadd_is_default.rules() == 2);
+        assert!(noadd_is_default.match_policy("") == ("", POLICY_NOADD));
+        assert!(noadd_is_default.match_policy("hello/there/general-kenobi") == ("hello/there", POLICY_IMMUTABLE));
     }
 
     #[test]
