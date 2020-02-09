@@ -111,16 +111,16 @@ fn policies_from_yaml(doc: &Yaml) -> Result<Policies, ZakocmpError> {
 
 // Borrows the YAML representation of a zakopane config and returns the
 // integral default-policy defined within.
-fn default_policy_from_yaml(doc: &Yaml) -> Result<Policy, ZakocmpError> {
+fn default_policy_from_yaml(doc: &Yaml) -> Result<Option<Policy>, ZakocmpError> {
     let default_policy_yaml = &doc[DEFAULT_POLICY_KEY];
     if default_policy_yaml.is_badvalue() {
-        return Err(ZakocmpError::Config(DEFAULT_POLICY_KEY.to_string()));
+        return Ok(None);
     }
     let default_policy: Policy = match default_policy_yaml.as_str() {
         None => return Err(ZakocmpError::Config(DEFAULT_POLICY_KEY.to_string())),
         Some(token) => policy_tokens_as_int(&token),
     }?;
-    Ok(default_policy)
+    Ok(Some(default_policy))
 }
 
 // Interprets |config_contents| as YAML and returns the first document
@@ -146,7 +146,10 @@ fn get_default_policy(
     if let Some(default_from_cli) = options.default_policy {
         return policy_tokens_as_int(default_from_cli);
     } else if let Some(yaml) = yaml_config {
-        return default_policy_from_yaml(yaml);
+        let optional_default_policy = default_policy_from_yaml(&yaml)?;
+        if let Some(default_policy) = optional_default_policy {
+            return Ok(default_policy);
+        }
     }
     Ok(POLICY_IMMUTABLE)
 }
@@ -264,10 +267,31 @@ mod tests {
     }
 
     #[test]
-    fn config_must_not_be_obviously_malformed() {
+    fn config_can_contain_anything() {
+        // This...might not be the best behavior to go for.
         let config_path = test_support::data_path("flagrantly-invalid-yaml");
         let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        assert!(Config::new(&options).is_err());
+        let config = Config::new(&options).unwrap();
+        assert_eq!(config.rules(), 1);
+    }
+
+    #[test]
+    fn config_can_be_empty() {
+        // An empty config file is valid (albeit trivial) YAML and is
+        // considered valid.
+        let options = test_support::options(Some("/dev/null"), None);
+        let config = Config::new(&options).unwrap();
+        assert_eq!(config.default_policy, POLICY_IMMUTABLE);
+    }
+
+    #[test]
+    fn config_can_omit_default_policy() {
+        // A config file without a default policy is valid.
+        let config_path = test_support::data_path("config-without-default-policy");
+        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
+        let config = Config::new(&options).unwrap();
+        assert_eq!(config.rules(), 5);
+        assert_eq!(config.default_policy, POLICY_IMMUTABLE);
     }
 
     #[test]

@@ -1,0 +1,5 @@
+policies:
+    ./some-placeholder-00/: ignore
+    ./some-placeholder-01/: ignore
+    ./some-placeholder-02/: ignore
+    ./some-placeholder-03/: ignore
