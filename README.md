@@ -48,3 +48,5 @@ You can find its README.md [here](zakocmp/README.md).
     names begin with a dot (`.`). This is an intentional, historical
     choice made to avoid the visual churn of tracking transient files in
     `~/.config`, `~/.local`, etc. etc.
+*   Google LLC owns the copyright on commits
+    `677a32b167502f6d5092add7f95178e81acf4d5d` and all newer commits.
