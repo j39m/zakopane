@@ -6,6 +6,12 @@ In a sentence, `zakopane` provides recursive sha256sums for your home
 directory. (The resourceful or scrappy wielder may find other uses for
 it - but that's my primary use case.)
 
+> **NOTE**: This project is free software, a personal project by j39m.
+> However, Google LLC owns the copyright on commits
+> `677a32b167502f6d5092add7f95178e81acf4d5d` and newer. This does not
+> impact your ability to use and to hack at this free software; I
+> provide this notice only for attribution purposes.
+
 ## Usage
 
 ### `simple-zakopane.sh`
@@ -48,5 +54,3 @@ You can find its README.md [here](zakocmp/README.md).
     names begin with a dot (`.`). This is an intentional, historical
     choice made to avoid the visual churn of tracking transient files in
     `~/.config`, `~/.local`, etc. etc.
-*   Google LLC owns the copyright on commits
-    `677a32b167502f6d5092add7f95178e81acf4d5d` and all newer commits.
