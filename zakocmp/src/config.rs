@@ -2,7 +2,6 @@
 // configuration files.
 
 use std::clone::Clone;
-use std::error::Error;
 
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -128,7 +127,7 @@ fn default_policy_from_yaml(doc: &Yaml) -> Result<Option<Policy>, ZakocmpError> 
 fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakocmpError> {
     let docs: Vec<Yaml> = YamlLoader::load_from_str(&config_contents).map_err(
         |scan_error: yaml_rust::ScanError| {
-            ZakocmpError::Config(scan_error.description().to_string())
+            ZakocmpError::Config(scan_error.to_string())
         },
     )?;
     // Explicitly allow empty configs.
