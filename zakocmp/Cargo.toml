@@ -14,5 +14,5 @@ path = "src/bin/zakocmp.rs"
 
 [dependencies]
 yaml-rust = "^0"
-indoc = "^0"
+indoc = "^1"
 clap = "^2"
