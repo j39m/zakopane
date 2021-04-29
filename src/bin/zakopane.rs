@@ -3,7 +3,7 @@ use libzakopane::snapshot::Snapshot;
 use libzakopane::structs::CliOptions;
 use libzakopane::structs::ZakopaneError;
 
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, Arg, ArgMatches};
 
 const DEFAULT_POLICY_ARG_NAME: &'static str = "default-policy";
 const CONFIG_FILE_ARG_NAME: &'static str = "config";
@@ -46,7 +46,7 @@ fn initialize() -> Result<OperationalData, ZakopaneError> {
         .author("j39m")
         .about("checksums directories")
         .subcommand(
-            SubCommand::with_name("compare")
+            App::new("compare")
                 .about("compares two zakopane snapshots")
                 .arg(
                     Arg::with_name(CONFIG_FILE_ARG_NAME)
@@ -78,7 +78,11 @@ fn initialize() -> Result<OperationalData, ZakopaneError> {
                 ),
         )
         .get_matches();
-    return complete_initialization(&matches);
+
+    if let Some(ref matches) = matches.subcommand_matches("compare") {
+        return complete_initialization(&matches);
+    }
+    Err(ZakopaneError::Unknown("not implemented".to_string()))
 }
 
 fn main() {
