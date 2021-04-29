@@ -7,7 +7,7 @@ use std::result::Result;
 use std::str::Lines;
 use std::string::String;
 
-use crate::structs::ZakocmpError;
+use crate::structs::ZakopaneError;
 
 // Defines the number of lines preceding the actual checksum content.
 const HEADER_LINES: usize = 3;
@@ -38,8 +38,8 @@ pub struct Snapshot {
 
 // Borrows the string representation of a line in a zakopane snapshot
 // and returns sliced str's in a tuple of (checksum, path).
-fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakocmpError> {
-    let bad_line = ZakocmpError::Snapshot(format!("malformed snapshot line: ``{}''", line));
+fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakopaneError> {
+    let bad_line = ZakopaneError::Snapshot(format!("malformed snapshot line: ``{}''", line));
     // A snapshot line should consist of the checksum, two spaces, and a
     // non-empty pathname.
     if line.len() < CHECKSUM_CHARS + 3
@@ -60,17 +60,17 @@ fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakocmpError> {
 impl Snapshot {
     // Borrows the string representation of a zakopane snapshot and
     // returns the corresponding Snapshot struct.
-    pub fn new(snapshot: &str) -> Result<Snapshot, ZakocmpError> {
+    pub fn new(snapshot: &str) -> Result<Snapshot, ZakopaneError> {
         let mut lines: Lines = snapshot.lines();
 
         // A zakopane snapshot starts with three extra lines intended
-        // for human readers. zakocmp doesn't care about this header.
+        // for human readers. zakopane doesn't care about this header.
         let mut header_drain: usize = HEADER_LINES;
         while header_drain > 0 {
             match lines.next() {
                 Some(_) => (),
                 None => {
-                    return Err(ZakocmpError::Snapshot(
+                    return Err(ZakopaneError::Snapshot(
                         "truncated zakopane snapshot".to_string(),
                     ))
                 }
@@ -85,7 +85,7 @@ impl Snapshot {
             match contents.insert(path.to_string(), checksum.to_string()) {
                 None => (),
                 Some(old_checksum) => {
-                    return Err(ZakocmpError::Snapshot(format!(
+                    return Err(ZakopaneError::Snapshot(format!(
                         "path collision: {} (was already {}, is now {})",
                         path, old_checksum, checksum
                     )))
@@ -110,13 +110,13 @@ impl Snapshot {
 mod tests {
     use super::*;
 
-    // Consumes a ZakocmpError and borrows a string slice. Asserts that
+    // Consumes a ZakopaneError and borrows a string slice. Asserts that
     // the error is of the Snapshot variant and starts with the string
     // slice.
-    fn assert_snapshot_error(error: ZakocmpError, prefix: &str) {
+    fn assert_snapshot_error(error: ZakopaneError, prefix: &str) {
         match error {
-            ZakocmpError::Snapshot(message) => assert!(message.starts_with(prefix)),
-            _ => panic!("expected ZakocmpError::Snapshot"),
+            ZakopaneError::Snapshot(message) => assert!(message.starts_with(prefix)),
+            _ => panic!("expected ZakopaneError::Snapshot"),
         };
     }
 

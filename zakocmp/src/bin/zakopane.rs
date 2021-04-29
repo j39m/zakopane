@@ -1,7 +1,7 @@
-use libzakocmp::config::Config;
-use libzakocmp::snapshot::Snapshot;
-use libzakocmp::structs::CliOptions;
-use libzakocmp::structs::ZakocmpError;
+use libzakopane::config::Config;
+use libzakopane::snapshot::Snapshot;
+use libzakopane::structs::CliOptions;
+use libzakopane::structs::ZakopaneError;
 
 use clap::{App, Arg, ArgMatches};
 
@@ -19,12 +19,12 @@ struct OperationalData {
 
 // Reads parsed command-line arguments and returns the appropriate
 // operational data. Can abort the program on error.
-fn complete_initialization(matches: &ArgMatches) -> Result<OperationalData, ZakocmpError> {
+fn complete_initialization(matches: &ArgMatches) -> Result<OperationalData, ZakopaneError> {
     // The two snapshot paths are required, so these are safe to unwrap.
     let old_snapshot_path = matches.value_of(OLD_SNAPSHOT_PATH_ARG_NAME).unwrap();
     let new_snapshot_path = matches.value_of(NEW_SNAPSHOT_PATH_ARG_NAME).unwrap();
-    let old_contents = libzakocmp::helpers::ingest_file(old_snapshot_path)?;
-    let new_contents = libzakocmp::helpers::ingest_file(new_snapshot_path)?;
+    let old_contents = libzakopane::helpers::ingest_file(old_snapshot_path)?;
+    let new_contents = libzakopane::helpers::ingest_file(new_snapshot_path)?;
 
     let options = CliOptions {
         config_path: matches.value_of(CONFIG_FILE_ARG_NAME),
@@ -40,8 +40,8 @@ fn complete_initialization(matches: &ArgMatches) -> Result<OperationalData, Zako
 
 // Begins parsing command-line arguments. Can abort the program on
 // error.
-fn initialize() -> Result<OperationalData, ZakocmpError> {
-    let matches = App::new("zakocmp")
+fn initialize() -> Result<OperationalData, ZakopaneError> {
+    let matches = App::new("zakopane")
         .version("0.2.0")
         .author("j39m")
         .about("compares zakopane snapshots")
@@ -50,7 +50,7 @@ fn initialize() -> Result<OperationalData, ZakocmpError> {
                 .short("c")
                 .long("config")
                 .value_name("FILE")
-                .help("specifies a zakocmp config")
+                .help("specifies a zakopane config")
                 .takes_value(true),
         )
         .arg(
@@ -92,6 +92,6 @@ fn main() {
         old_snapshot,
     } = operational_data;
     assert!(config.rules() > 0);
-    let violations = libzakocmp::enter(&config, &old_snapshot, &new_snapshot);
+    let violations = libzakopane::enter(&config, &old_snapshot, &new_snapshot);
     println!("{}", violations);
 }

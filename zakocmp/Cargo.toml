@@ -1,16 +1,16 @@
 [package]
-name = "zakocmp"
-version = "0.2.0"
+name = "zakopane"
+version = "0.3.0"
 authors = ["j39m"]
 edition = "2018"
 
 [lib]
-name = "libzakocmp"
-path = "src/libzakocmp.rs"
+name = "libzakopane"
+path = "src/libzakopane.rs"
 
 [[bin]]
-name = "zakocmp"
-path = "src/bin/zakocmp.rs"
+name = "zakopane"
+path = "src/bin/zakopane.rs"
 
 [dependencies]
 yaml-rust = "^0"

@@ -1,8 +1,8 @@
-// This module defines a container that expresses zakocmp policy
+// This module defines a container that expresses zakopane policy
 // violations - i.e. human-readable descriptions of notable
-// discrepancies between zakocmp snapshots.
+// discrepancies between zakopane snapshots.
 
-use crate::structs::ZakocmpError;
+use crate::structs::ZakopaneError;
 
 // Represents possible policy violations as caller-passable ints.
 pub const ADDED: i32 = 0;
@@ -28,10 +28,10 @@ impl Violations {
 
     // Accepts a path (arbitrary string of bytes) and a kind of policy
     // violation.
-    pub fn add(&mut self, path: &str, kind: i32) -> std::result::Result<(), ZakocmpError> {
+    pub fn add(&mut self, path: &str, kind: i32) -> std::result::Result<(), ZakopaneError> {
         match kind {
             ADDED | DELETED | MODIFIED => (),
-            _ => return Err(ZakocmpError::Unknown(format!("bad kind: {}", kind))),
+            _ => return Err(ZakopaneError::Unknown(format!("bad kind: {}", kind))),
         };
         self.data.push((path.to_owned(), kind));
         Ok(())
@@ -69,8 +69,8 @@ mod tests {
         let mut violations = Violations::new();
         let error = violations.add("some/path", 999).unwrap_err();
         match error {
-            ZakocmpError::Unknown(message) => assert!(message.starts_with("bad")),
-            _ => panic!("not a ZakocmpError::Unknown"),
+            ZakopaneError::Unknown(message) => assert!(message.starts_with("bad")),
+            _ => panic!("not a ZakopaneError::Unknown"),
         };
     }
 

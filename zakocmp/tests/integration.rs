@@ -1,22 +1,22 @@
 // This integration test suite relies heavily on the string
 // representation of the Violations struct, as that's the final
-// user-visible output that the zakocmp binary presents.
+// user-visible output that the zakopane binary presents.
 
 use indoc::indoc;
 
-use libzakocmp::config::Config;
-use libzakocmp::snapshot::snapshot_string_for_testing;
-use libzakocmp::snapshot::Snapshot;
+use libzakopane::config::Config;
+use libzakopane::snapshot::snapshot_string_for_testing;
+use libzakopane::snapshot::Snapshot;
 
 #[test]
 fn test_basic_default_immutability() {
-    let options = libzakocmp::config::test_support::options(None, Some("immutable"));
+    let options = libzakopane::config::test_support::options(None, Some("immutable"));
     let config: Config = Config::new(&options).unwrap();
 
     // Verifies that empty snapshots never turn up violations.
     let empty_older = Snapshot::new(&snapshot_string_for_testing("")).unwrap();
     let empty_newer = Snapshot::new(&snapshot_string_for_testing("")).unwrap();
-    let empty_violations = libzakocmp::enter(&config, &empty_older, &empty_newer);
+    let empty_violations = libzakopane::enter(&config, &empty_older, &empty_newer);
     assert_eq!(empty_violations.to_string(), "");
 
     // Verifies that disjoint snapshots also violate this policy.
@@ -28,8 +28,8 @@ fn test_basic_default_immutability() {
         "0000000000000000000000000000000000000000000000000000000000000000  ./x/y/z",
     ))
     .unwrap();
-    let disjoint_violations = libzakocmp::enter(&config, &disjoint_older, &disjoint_newer);
-    // From zakocmp's point of view, ``./a/b/c'' was deleted and
+    let disjoint_violations = libzakopane::enter(&config, &disjoint_older, &disjoint_newer);
+    // From zakopane's point of view, ``./a/b/c'' was deleted and
     // ``./x/y/z'' was added.
     assert_eq!(
         disjoint_violations.to_string(),
@@ -41,7 +41,7 @@ fn test_basic_default_immutability() {
         )
     );
 
-    // Verifies that zakocmp catches the two changed files interspersed
+    // Verifies that zakopane catches the two changed files interspersed
     // with others that did not.
     let shifty_older = Snapshot::new(&snapshot_string_for_testing(indoc!(
         r#"
@@ -65,7 +65,7 @@ fn test_basic_default_immutability() {
         "#
     )))
     .unwrap();
-    let shifty_violations = libzakocmp::enter(&config, &shifty_older, &shifty_newer);
+    let shifty_violations = libzakopane::enter(&config, &shifty_older, &shifty_newer);
     assert_eq!(
         shifty_violations.to_string(),
         indoc!(
@@ -76,7 +76,7 @@ fn test_basic_default_immutability() {
         )
     );
 
-    // As an additional sanity check, verifies that zakocmp snapshots
+    // As an additional sanity check, verifies that zakopane snapshots
     // are not sensitive to the ordering of input files.
     let shifty_newer_shuffled = Snapshot::new(&snapshot_string_for_testing(indoc!(
         r#"
@@ -90,7 +90,7 @@ fn test_basic_default_immutability() {
     )))
     .unwrap();
     let the_same_shifty_violations =
-        libzakocmp::enter(&config, &shifty_older, &shifty_newer_shuffled);
+        libzakopane::enter(&config, &shifty_older, &shifty_newer_shuffled);
     assert_eq!(
         shifty_violations.to_string(),
         the_same_shifty_violations.to_string()
@@ -100,9 +100,9 @@ fn test_basic_default_immutability() {
 #[test]
 fn test_overlapping_prefixes() {
     let config_path =
-        libzakocmp::config::test_support::data_path("config-with-several-more-policies");
+        libzakopane::config::test_support::data_path("config-with-several-more-policies");
     let options =
-        libzakocmp::config::test_support::options(Some(config_path.to_str().unwrap()), None);
+        libzakopane::config::test_support::options(Some(config_path.to_str().unwrap()), None);
     let config = Config::new(&options).unwrap();
 
     let snapshot_older = Snapshot::new(&snapshot_string_for_testing(indoc!(
@@ -133,7 +133,7 @@ fn test_overlapping_prefixes() {
     )))
     .unwrap();
 
-    let violations = libzakocmp::enter(&config, &snapshot_older, &snapshot_newer);
+    let violations = libzakopane::enter(&config, &snapshot_older, &snapshot_newer);
     assert_eq!(
         violations.to_string(),
         indoc!(

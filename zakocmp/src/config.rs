@@ -1,4 +1,4 @@
-// This module defines constants and functions for working with zakocmp
+// This module defines constants and functions for working with zakopane
 // configuration files.
 
 use std::clone::Clone;
@@ -6,7 +6,7 @@ use std::clone::Clone;
 use yaml_rust::{Yaml, YamlLoader};
 
 use crate::structs::CliOptions;
-use crate::structs::ZakocmpError;
+use crate::structs::ZakopaneError;
 
 // Represents a single zakopane config policy.
 type Policy = i32;
@@ -41,25 +41,25 @@ pub struct Config {
 
 // Borrows the string representation of one policy `token` and returns
 // the equivalent integral representation.
-fn policy_token_as_int(token: &str) -> Result<Policy, ZakocmpError> {
+fn policy_token_as_int(token: &str) -> Result<Policy, ZakopaneError> {
     match token {
         POLICY_REPR_IGNORE => Ok(POLICY_IGNORE),
         POLICY_REPR_NOADD => Ok(POLICY_NOADD),
         POLICY_REPR_NODELETE => Ok(POLICY_NODELETE),
         POLICY_REPR_NOMODIFY => Ok(POLICY_NOMODIFY),
         POLICY_REPR_IMMUTABLE => Ok(POLICY_IMMUTABLE),
-        _ => Err(ZakocmpError::Config(format!("bad token: ``{}''", token))),
+        _ => Err(ZakopaneError::Config(format!("bad token: ``{}''", token))),
     }
 }
 
 // Borrows the string representation of a combined `policy` and returns
 // the equivalent integral representation. This function expects
 // `policy` to comprise one or more policy tokens separated by commas.
-fn policy_tokens_as_int(policy: &str) -> Result<Policy, ZakocmpError> {
+fn policy_tokens_as_int(policy: &str) -> Result<Policy, ZakopaneError> {
     let policy_ints: Vec<Policy> = policy
         .split(",")
         .map(|tok| policy_token_as_int(tok))
-        .collect::<Result<Vec<Policy>, ZakocmpError>>()?;
+        .collect::<Result<Vec<Policy>, ZakopaneError>>()?;
     Ok(policy_ints
         .iter()
         .fold(POLICY_IGNORE, |accum, elem| accum | elem))
@@ -71,14 +71,14 @@ fn policy_tokens_as_int(policy: &str) -> Result<Policy, ZakocmpError> {
 fn policy_tuple_from_yaml(
     ypath: &Yaml,
     policy_tokens: &Yaml,
-) -> Result<(String, Policy), ZakocmpError> {
+) -> Result<(String, Policy), ZakopaneError> {
     let path: String = match ypath.as_str() {
         Some(string) => string.to_owned(),
-        None => return Err(ZakocmpError::Config("malformed path?".to_string())),
+        None => return Err(ZakopaneError::Config("malformed path?".to_string())),
     };
     let policy: Policy = match policy_tokens.as_str() {
         Some(string) => policy_tokens_as_int(string)?,
-        None => return Err(ZakocmpError::Config("malformed policy?".to_string())),
+        None => return Err(ZakopaneError::Config("malformed policy?".to_string())),
     };
     Ok((path, policy))
 }
@@ -86,7 +86,7 @@ fn policy_tuple_from_yaml(
 // Borrows the YAML representation of a zakopane config and returns the
 // corresponding Policies. The return value can be benignly
 // empty (e.g. if the present config elects not to specify any rules).
-fn policies_from_yaml(doc: &Yaml) -> Result<Policies, ZakocmpError> {
+fn policies_from_yaml(doc: &Yaml) -> Result<Policies, ZakopaneError> {
     let policies_map_yaml = &doc[POLICIES_KEY];
     if policies_map_yaml.is_badvalue() {
         // Assumes the config may be benignly devoid of specific
@@ -98,25 +98,25 @@ fn policies_from_yaml(doc: &Yaml) -> Result<Policies, ZakocmpError> {
     // of policies.
     let policies_map: &yaml_rust::yaml::Hash = match policies_map_yaml.as_hash() {
         Some(map) => map,
-        None => return Err(ZakocmpError::Config("malformed policies".to_string())),
+        None => return Err(ZakopaneError::Config("malformed policies".to_string())),
     };
     let mut policies: Policies = policies_map
         .into_iter()
         .map(|pair| policy_tuple_from_yaml(&pair.0, &pair.1))
-        .collect::<Result<Policies, ZakocmpError>>()?;
+        .collect::<Result<Policies, ZakopaneError>>()?;
     policies.sort_unstable_by_key(|pair| pair.0.to_owned());
     Ok(policies)
 }
 
 // Borrows the YAML representation of a zakopane config and returns the
 // integral default-policy defined within.
-fn default_policy_from_yaml(doc: &Yaml) -> Result<Option<Policy>, ZakocmpError> {
+fn default_policy_from_yaml(doc: &Yaml) -> Result<Option<Policy>, ZakopaneError> {
     let default_policy_yaml = &doc[DEFAULT_POLICY_KEY];
     if default_policy_yaml.is_badvalue() {
         return Ok(None);
     }
     let default_policy: Policy = match default_policy_yaml.as_str() {
-        None => return Err(ZakocmpError::Config(DEFAULT_POLICY_KEY.to_string())),
+        None => return Err(ZakopaneError::Config(DEFAULT_POLICY_KEY.to_string())),
         Some(token) => policy_tokens_as_int(&token),
     }?;
     Ok(Some(default_policy))
@@ -124,11 +124,9 @@ fn default_policy_from_yaml(doc: &Yaml) -> Result<Option<Policy>, ZakocmpError> 
 
 // Interprets |config_contents| as YAML and returns the first document
 // within (if present).
-fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakocmpError> {
+fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakopaneError> {
     let docs: Vec<Yaml> = YamlLoader::load_from_str(&config_contents).map_err(
-        |scan_error: yaml_rust::ScanError| {
-            ZakocmpError::Config(scan_error.to_string())
-        },
+        |scan_error: yaml_rust::ScanError| ZakopaneError::Config(scan_error.to_string()),
     )?;
     // Explicitly allow empty configs.
     if docs.len() == 0 {
@@ -141,7 +139,7 @@ fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakocmpError> {
 fn get_default_policy(
     options: &CliOptions,
     yaml_config: &Option<Yaml>,
-) -> Result<Policy, ZakocmpError> {
+) -> Result<Policy, ZakopaneError> {
     if let Some(default_from_cli) = options.default_policy {
         return policy_tokens_as_int(default_from_cli);
     } else if let Some(yaml) = yaml_config {
@@ -154,7 +152,7 @@ fn get_default_policy(
 }
 
 // Returns any additional policies for this invocation.
-fn get_policies(yaml_config: &Option<Yaml>) -> Result<Policies, ZakocmpError> {
+fn get_policies(yaml_config: &Option<Yaml>) -> Result<Policies, ZakopaneError> {
     match yaml_config {
         Some(doc) => policies_from_yaml(doc),
         None => Ok(Policies::new()),
@@ -164,7 +162,7 @@ fn get_policies(yaml_config: &Option<Yaml>) -> Result<Policies, ZakocmpError> {
 impl Config {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding Config.
-    pub fn new(options: &CliOptions) -> Result<Config, ZakocmpError> {
+    pub fn new(options: &CliOptions) -> Result<Config, ZakopaneError> {
         let yaml_config: Option<Yaml> = match options.config_path {
             Some(path) => {
                 let config = crate::helpers::ingest_file(path)?;

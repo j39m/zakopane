@@ -62,9 +62,6 @@ fn check_additions(
     }
 }
 
-// The main entry point of the zakocmp executable.
-// Accepts a well-formed Config, older Snapshot, and newer Snapshot.
-// Returns a Violation struct.
 pub fn enter(config: &Config, older_snapshot: &Snapshot, newer_snapshot: &Snapshot) -> Violations {
     let mut violations = Violations::new();
     check_modifications_and_deletions(&config, &older_snapshot, &newer_snapshot, &mut violations);

@@ -1,32 +1,48 @@
-# zakocmp
+# zakopane
 
-`zakocmp` is a tool that compares zakopane snapshots.
+`zakopane` is a tool that captures filesystem checksums.
+The present implementation can be characterized "`sha256sum`, but
+recursive."
 
 ## Usage
 
 ```sh
+# Captures checksums of all files under <directory>.
+# Not presently implemented.
+zakopane checksum <directory>
+
 # Compares zakopane snapshots <before> and <after> using rules defined
 # defined in <config>.
-# The <config> is optional.
-zakocmp --config <config> <before> <after>
+zakopane compare --config <config> <before> <after>
 ```
 
-## The config file
+## "checksum" Subcommand
 
-A `zakocmp` config file is a YAML document comprising
+There are two noteworthy aspects of the behavior of `zakopane checksum`:
+
+1.  `zakopane` does not descend into directories whose names begin with
+    a dot.
+1.  `zakopane` does not attempt to stay within the same filesystem and
+    will happily cross over bind-mounted filesystem boundaries.
+
+## "compare" Subcommand
+
+`zakopane compare` accepts a config file in the form of a YAML document
+comprising
+
 *   a default policy and
 *   more specific policies.
 
 Both are optional; in fact, empty YAML documents and YAML dictionaries
 with irrelevant keys will be treated as no-op (but valid) configs.
 
-### Policy appendix
+### Policy Values
 
-1.  `ignore` tells `zakocmp` to do nothing with matching files. It's as
+1.  `ignore` tells `zakopane` to do nothing with matching files. It's as
     though they don't exist.
-1.  `noadd` tells `zakocmp` to report added files.
-1.  `nomodify` tells `zakocmp` to report modified files.
-1.  `nodelete` tells `zakocmp` to report deleted files.
+1.  `noadd` tells `zakopane` to report added files.
+1.  `nomodify` tells `zakopane` to report modified files.
+1.  `nodelete` tells `zakopane` to report deleted files.
 1.  `immutable` is shorthand that means the same thing as
     `noadd,nomodify,nodelete` all together.
 
@@ -34,15 +50,15 @@ Policies are joined together (without spaces) by a comma as in the
 definition of the `immutable` policy. Order and repetition do not
 matter.
 
-### The default policy
+### Default Policy
 
-`zakocmp` determines the default policy
+`zakopane compare` determines the default policy
 
 1.  by looking for it on the command-line (`--default-policy` or `-d`),
 1.  by looking for it in the config file (if given), and
 1.  finally by falling back to a hardcoded default of `immutable`.
 
-### Examples
+## Appendix: Comparison Configurations
 
 ```yaml
 # Anything not covered by a specific policy should be ignored.
@@ -54,8 +70,8 @@ policies:
     ./Documents/general/kenobi: noadd,nodelete
 ```
 
-In a `zakocmp` config, the longest path match wins. Take the following
-policies excerpt:
+In a `zakopane compare` config, the longest path match wins. Take the
+following policies excerpt:
 
 ```yaml
 policies:
@@ -82,5 +98,5 @@ policies:
 The above policies excerpt specifies that new entities may appear under
 `./family-pictures/2020`, but existing entities must never change or
 disappear. All other entities under `./family-pictures/` must never
-change in any way; `zakocmp` will visually warn of addition, deletion,
+change in any way; `zakopane` will visually warn of addition, deletion,
 or modification of these.
