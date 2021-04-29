@@ -1,56 +1,108 @@
 # zakopane
 
-... is a script that checksums your files.
-
-In a sentence, `zakopane` provides recursive sha256sums for your home
-directory. (The resourceful or scrappy wielder may find other uses for
-it - but that's my primary use case.)
-
 > **NOTE**: This project is free software, a personal project by j39m.
 > However, Google LLC owns the copyright on commits
 > `677a32b167502f6d5092add7f95178e81acf4d5d` and newer. This does not
 > impact your ability to use and to hack at this free software; I
 > provide this notice only for attribution purposes.
 
+`zakopane` is a tool that captures filesystem checksums.
+The present implementation can be characterized "`sha256sum`, but
+recursive."
+
 ## Usage
 
-### `simple-zakopane.sh`
-
-... is a shell script that uses `find` and `sha256sum` to checksum files
-of your choosing. You feed the directory-to-sum as its sole argument.
-I typically use it like so:
-
 ```sh
-# simple-zakopane.sh writes the checksums into its cwd. Before invoking
-# simple-zakopane.sh, you should "cd" into the desired output dir.
-[j39m@SERN ~/Downloads]
-$ cd ~/.config/zakopane/
+# Captures checksums of all files under <directory>.
+# Not presently implemented.
+zakopane checksum <directory>
 
-# I want to checksum my home directory; I invoke simple-zakopane.sh
-# like so:
-[j39m@SERN ~/.config/zakopane]
-$ simple-zakopane.sh ~/
-# much time passes...
-simple-zakopane.sh: Wrote 2019-09-27-140303.sums.
-[j39m@SERN ~/.config/zakopane]
-$ ls
-2019-09-27-140303.sums 
+# Compares zakopane snapshots <before> and <after> using rules defined
+# defined in <config>.
+zakopane compare --config <config> <before> <after>
 ```
 
-### `zakocmp`
+## "checksum" Subcommand
 
-... is a program that reports notable differences between two `zakopane`
-snapshots. The invoker provides a configuration file to instruct
-`zakocmp` on what constitutes a noteworthy discrepancy.
+There are two noteworthy aspects of the behavior of `zakopane checksum`:
 
-You can find its README.md [here](zakocmp/README.md).
+1.  `zakopane` does not descend into directories whose names begin with
+    a dot.
+1.  `zakopane` does not attempt to stay within the same filesystem and
+    will happily cross over bind-mounted filesystem boundaries.
 
-## Notes
+## "compare" Subcommand
 
-*   For performance and correctness, perhaps manually implementing the
-    checksum snapshot is preferable. But for my purposes,
-    `simple-zakopane.sh` is perfectly adequate.
-*   Note that `simple-zakopane.sh` does not traverse directories whose
-    names begin with a dot (`.`). This is an intentional, historical
-    choice made to avoid the visual churn of tracking transient files in
-    `~/.config`, `~/.local`, etc. etc.
+`zakopane compare` accepts a config file in the form of a YAML document
+comprising
+
+*   a default policy and
+*   more specific policies.
+
+Both are optional; in fact, empty YAML documents and YAML dictionaries
+with irrelevant keys will be treated as no-op (but valid) configs.
+
+### Policy Values
+
+1.  `ignore` tells `zakopane` to do nothing with matching files. It's as
+    though they don't exist.
+1.  `noadd` tells `zakopane` to report added files.
+1.  `nomodify` tells `zakopane` to report modified files.
+1.  `nodelete` tells `zakopane` to report deleted files.
+1.  `immutable` is shorthand that means the same thing as
+    `noadd,nomodify,nodelete` all together.
+
+Policies are joined together (without spaces) by a comma as in the
+definition of the `immutable` policy. Order and repetition do not
+matter.
+
+### Default Policy
+
+`zakopane compare` determines the default policy
+
+1.  by looking for it on the command-line (`--default-policy` or `-d`),
+1.  by looking for it in the config file (if given), and
+1.  finally by falling back to a hardcoded default of `immutable`.
+
+## Appendix: Comparison Configurations
+
+```yaml
+# Anything not covered by a specific policy should be ignored.
+default-policy: ignore
+
+# We only care about paths spelling out prequel memes, it seems.
+policies:
+    ./Documents/hello/there: nomodify,nodelete
+    ./Documents/general/kenobi: noadd,nodelete
+```
+
+In a `zakopane compare` config, the longest path match wins. Take the
+following policies excerpt:
+
+```yaml
+policies:
+    ./Documents/: nomodify
+    ./Documents/you/are/a/bold/one/: ignore
+```
+
+Then a file named `./Documents/you/are/shorter-than-i-expected.txt` will
+be subject to the former `nomodify` rule, while a file named
+`./Documents/you/are/a/bold/one/poo/doo.txt` will be subject to the
+latter `ignore` rule.
+
+There is no concept of policy "strength;" the longest path match always
+wins. Suppose the year is CE 2020, and I'm still actively adding family
+photos to the directory of the same year. Here's an appropriate
+policies excerpt:
+
+```yaml
+policies:
+    ./family-pictures/: immutable
+    ./family-pictures/2020/: nomodify,nodelete
+```
+
+The above policies excerpt specifies that new entities may appear under
+`./family-pictures/2020`, but existing entities must never change or
+disappear. All other entities under `./family-pictures/` must never
+change in any way; `zakopane` will visually warn of addition, deletion,
+or modification of these.
