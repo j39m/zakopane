@@ -3,7 +3,7 @@ use libzakopane::snapshot::Snapshot;
 use libzakopane::structs::CliOptions;
 use libzakopane::structs::ZakopaneError;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg, ArgMatches, SubCommand};
 
 const DEFAULT_POLICY_ARG_NAME: &'static str = "default-policy";
 const CONFIG_FILE_ARG_NAME: &'static str = "config";
@@ -44,34 +44,38 @@ fn initialize() -> Result<OperationalData, ZakopaneError> {
     let matches = App::new("zakopane")
         .version("0.2.0")
         .author("j39m")
-        .about("compares zakopane snapshots")
-        .arg(
-            Arg::with_name(CONFIG_FILE_ARG_NAME)
-                .short("c")
-                .long("config")
-                .value_name("FILE")
-                .help("specifies a zakopane config")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(DEFAULT_POLICY_ARG_NAME)
-                .short("d")
-                .long("default-policy")
-                .value_name("POLICY_TOKENS")
-                .help("specifies an explicit default policy")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(OLD_SNAPSHOT_PATH_ARG_NAME)
-                .help("path to older snapshot")
-                .index(1)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(NEW_SNAPSHOT_PATH_ARG_NAME)
-                .help("path to newer snapshot")
-                .index(2)
-                .required(true),
+        .about("checksums directories")
+        .subcommand(
+            SubCommand::with_name("compare")
+                .about("compares two zakopane snapshots")
+                .arg(
+                    Arg::with_name(CONFIG_FILE_ARG_NAME)
+                        .short("c")
+                        .long("config")
+                        .value_name("FILE")
+                        .help("specifies a zakopane config")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name(DEFAULT_POLICY_ARG_NAME)
+                        .short("d")
+                        .long("default-policy")
+                        .value_name("POLICY_TOKENS")
+                        .help("specifies an explicit default policy")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name(OLD_SNAPSHOT_PATH_ARG_NAME)
+                        .help("path to older snapshot")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name(NEW_SNAPSHOT_PATH_ARG_NAME)
+                        .help("path to newer snapshot")
+                        .index(2)
+                        .required(true),
+                ),
         )
         .get_matches();
     return complete_initialization(&matches);
