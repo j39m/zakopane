@@ -1,3 +1,4 @@
+pub mod checksum;
 mod compare;
 pub mod config;
 pub mod helpers;
