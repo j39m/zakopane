@@ -16,7 +16,7 @@ fn test_basic_default_immutability() {
     // Verifies that empty snapshots never turn up violations.
     let empty_older = Snapshot::new(&snapshot_string_for_testing("")).unwrap();
     let empty_newer = Snapshot::new(&snapshot_string_for_testing("")).unwrap();
-    let empty_violations = libzakopane::enter(&config, &empty_older, &empty_newer);
+    let empty_violations = libzakopane::compare(&config, &empty_older, &empty_newer);
     assert_eq!(empty_violations.to_string(), "");
 
     // Verifies that disjoint snapshots also violate this policy.
@@ -28,7 +28,7 @@ fn test_basic_default_immutability() {
         "0000000000000000000000000000000000000000000000000000000000000000  ./x/y/z",
     ))
     .unwrap();
-    let disjoint_violations = libzakopane::enter(&config, &disjoint_older, &disjoint_newer);
+    let disjoint_violations = libzakopane::compare(&config, &disjoint_older, &disjoint_newer);
     // From zakopane's point of view, ``./a/b/c'' was deleted and
     // ``./x/y/z'' was added.
     assert_eq!(
@@ -65,7 +65,7 @@ fn test_basic_default_immutability() {
         "#
     )))
     .unwrap();
-    let shifty_violations = libzakopane::enter(&config, &shifty_older, &shifty_newer);
+    let shifty_violations = libzakopane::compare(&config, &shifty_older, &shifty_newer);
     assert_eq!(
         shifty_violations.to_string(),
         indoc!(
@@ -90,7 +90,7 @@ fn test_basic_default_immutability() {
     )))
     .unwrap();
     let the_same_shifty_violations =
-        libzakopane::enter(&config, &shifty_older, &shifty_newer_shuffled);
+        libzakopane::compare(&config, &shifty_older, &shifty_newer_shuffled);
     assert_eq!(
         shifty_violations.to_string(),
         the_same_shifty_violations.to_string()
@@ -133,7 +133,7 @@ fn test_overlapping_prefixes() {
     )))
     .unwrap();
 
-    let violations = libzakopane::enter(&config, &snapshot_older, &snapshot_newer);
+    let violations = libzakopane::compare(&config, &snapshot_older, &snapshot_newer);
     assert_eq!(
         violations.to_string(),
         indoc!(

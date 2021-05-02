@@ -62,7 +62,11 @@ fn check_additions(
     }
 }
 
-pub fn enter(config: &Config, older_snapshot: &Snapshot, newer_snapshot: &Snapshot) -> Violations {
+pub fn compare(
+    config: &Config,
+    older_snapshot: &Snapshot,
+    newer_snapshot: &Snapshot,
+) -> Violations {
     let mut violations = Violations::new();
     check_modifications_and_deletions(&config, &older_snapshot, &newer_snapshot, &mut violations);
     check_additions(&config, &older_snapshot, &newer_snapshot, &mut violations);

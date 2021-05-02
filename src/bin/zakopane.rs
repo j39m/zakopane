@@ -100,6 +100,6 @@ fn main() {
         old_snapshot,
     } = operational_data;
     assert!(config.rules() > 0);
-    let violations = libzakopane::enter(&config, &old_snapshot, &new_snapshot);
+    let violations = libzakopane::compare(&config, &old_snapshot, &new_snapshot);
     println!("{}", violations);
 }
