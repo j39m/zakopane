@@ -3,6 +3,7 @@
 use crate::structs::ZakopaneError;
 
 const MAX_TASKS: usize = 8;
+type ChecksumResult = Result<String, ZakopaneError>;
 
 #[derive(Default)]
 struct ChecksumTaskManager {
@@ -12,10 +13,10 @@ struct ChecksumTaskManager {
     // Map of outstanding checksum tasks.
     // *    Keys: absolute paths being checksummed
     // *    Values: tokio JoinHandles for checksum tasks
-    tasks: std::collections::HashMap<String, tokio::task::JoinHandle<String>>,
+    tasks: std::collections::HashMap<String, tokio::task::JoinHandle<ChecksumResult>>,
 }
 
-async fn do_checksum(path: std::path::PathBuf) -> Result<String, ZakopaneError> {
+async fn do_checksum(path: std::path::PathBuf) -> ChecksumResult {
     todo!()
 }
 
@@ -24,16 +25,16 @@ impl ChecksumTaskManager {
         Default::default()
     }
 
-    pub async fn spawn_task(&self, path: std::path::PathBuf) {
+    pub async fn spawn_task(&mut self, path: std::path::PathBuf) {
         assert!(
             self.tasks.len() < MAX_TASKS,
             "attempted to spawn too many tasks"
         );
-        tokio::spawn(do_checksum(path));
+        self.tasks.insert(String::from(path.to_str().unwrap()), tokio::spawn(do_checksum(path)));
     }
 }
 
-async fn checksum_impl() -> Result<String, ZakopaneError> {
+async fn checksum_impl() -> ChecksumResult {
     // *    Walk the target path.
     // *    If we can, then spawn a task, providing the current path
     //      in the walk and a cloned transmitter.
@@ -43,7 +44,7 @@ async fn checksum_impl() -> Result<String, ZakopaneError> {
 }
 
 #[allow(dead_code)]
-fn checksum() -> Result<String, ZakopaneError> {
+fn checksum() -> ChecksumResult {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(checksum_impl())
 }
