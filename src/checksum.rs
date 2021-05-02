@@ -18,7 +18,7 @@ struct ChecksumTaskManager {
     receiver: tokio::sync::mpsc::Receiver<ChecksumResult>,
 }
 
-async fn do_checksum(path: std::path::PathBuf) {
+async fn do_checksum(path: std::path::PathBuf, sender: tokio::sync::mpsc::Sender<ChecksumResult>) {
     todo!()
 }
 
@@ -40,7 +40,7 @@ impl ChecksumTaskManager {
         );
         self.tasks.insert(
             String::from(path.to_str().unwrap()),
-            tokio::spawn(do_checksum(path)),
+            tokio::spawn(do_checksum(path, self.sender.clone())),
         );
     }
 }
