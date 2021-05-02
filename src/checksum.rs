@@ -25,7 +25,7 @@ impl ChecksumTaskManager {
         Default::default()
     }
 
-    pub async fn spawn_task(&mut self, path: std::path::PathBuf) {
+    pub fn spawn_task(&mut self, path: std::path::PathBuf) {
         assert!(
             self.tasks.len() < MAX_TASKS,
             "attempted to spawn too many tasks"
