@@ -5,7 +5,6 @@ use crate::structs::ZakopaneError;
 const MAX_TASKS: usize = 8;
 type ChecksumResult = Result<String, ZakopaneError>;
 
-#[derive(Default)]
 struct ChecksumTaskManager {
     // Non-associative container enumerating paths and checksums.
     sums: std::vec::Vec<(String, String)>,
@@ -13,16 +12,25 @@ struct ChecksumTaskManager {
     // Map of outstanding checksum tasks.
     // *    Keys: absolute paths being checksummed
     // *    Values: tokio JoinHandles for checksum tasks
-    tasks: std::collections::HashMap<String, tokio::task::JoinHandle<ChecksumResult>>,
+    tasks: std::collections::HashMap<String, tokio::task::JoinHandle<()>>,
+
+    sender: tokio::sync::mpsc::Sender<ChecksumResult>,
+    receiver: tokio::sync::mpsc::Receiver<ChecksumResult>,
 }
 
-async fn do_checksum(path: std::path::PathBuf) -> ChecksumResult {
+async fn do_checksum(path: std::path::PathBuf) {
     todo!()
 }
 
 impl ChecksumTaskManager {
     pub fn new() -> Self {
-        Default::default()
+        let (sender, receiver) = tokio::sync::mpsc::channel(MAX_TASKS);
+        Self {
+            sums: Default::default(),
+            tasks: Default::default(),
+            sender: sender,
+            receiver: receiver,
+        }
     }
 
     pub fn spawn_task(&mut self, path: std::path::PathBuf) {
@@ -30,7 +38,10 @@ impl ChecksumTaskManager {
             self.tasks.len() < MAX_TASKS,
             "attempted to spawn too many tasks"
         );
-        self.tasks.insert(String::from(path.to_str().unwrap()), tokio::spawn(do_checksum(path)));
+        self.tasks.insert(
+            String::from(path.to_str().unwrap()),
+            tokio::spawn(do_checksum(path)),
+        );
     }
 }
 
