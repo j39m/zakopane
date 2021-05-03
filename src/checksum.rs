@@ -36,7 +36,7 @@ struct ChecksumTaskManager {
 }
 
 // Sends a checksum task result downstream to the collector task.
-async fn send_checksum_result(
+async fn checksum_task_send_result(
     result: ChecksumResult,
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
 ) {
@@ -45,18 +45,18 @@ async fn send_checksum_result(
     }
 }
 
-// Separated from `do_checksum()` to ensure the `add_permits()` call is
+// Separated from `checksum_task()` to ensure the `add_permits()` call is
 // always hit.
-async fn do_checksum_impl(
+async fn checksum_task_impl(
     path: std::path::PathBuf,
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
 ) {
     let contents = match crate::helpers::ingest_file(path.to_str().unwrap()) {
         Ok(contents) => contents,
-        Err(e) => return send_checksum_result(Err(e), sender).await,
+        Err(e) => return checksum_task_send_result(Err(e), sender).await,
     };
     let checksum = crypto_hash::hex_digest(crypto_hash::Algorithm::SHA256, contents.as_ref());
-    send_checksum_result(
+    checksum_task_send_result(
         Ok(ChecksumWithPath::new(
             checksum,
             String::from(path.to_str().unwrap()),
@@ -66,12 +66,12 @@ async fn do_checksum_impl(
     .await;
 }
 
-async fn do_checksum(
+async fn checksum_task(
     path: std::path::PathBuf,
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
     semaphore_clone: std::sync::Arc<tokio::sync::Semaphore>,
 ) {
-    do_checksum_impl(path, sender).await;
+    checksum_task_impl(path, sender).await;
 
     // See comment in `ChecksumTaskManager::spawn_task()`.
     semaphore_clone.add_permits(1);
@@ -103,7 +103,7 @@ impl ChecksumTaskManager {
 
         let sender = self.sender.clone();
         let semaphore_clone = self.semaphore.clone();
-        tokio::task::spawn_blocking(move || do_checksum(path, sender, semaphore_clone));
+        tokio::task::spawn_blocking(move || checksum_task(path, sender, semaphore_clone));
     }
 
     async fn collect_checksum_results(&mut self) {
