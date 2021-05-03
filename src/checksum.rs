@@ -19,20 +19,29 @@ impl ChecksumWithPath {
 }
 
 type ChecksumResult = Result<ChecksumWithPath, ZakopaneError>;
+type ChecksumTaskJoinHandle = tokio::task::JoinHandle<Vec<ChecksumWithPath>>;
 
-// Thread-shared fields are wrapped in `Arc` to silence build complaints
-// about references (moved into spawned threads) outliving this struct.
-struct ChecksumTaskManager {
-    // Non-associative container enumerating paths and checksums.
-    sums: std::vec::Vec<ChecksumWithPath>,
-
+struct ChecksumTaskDispatcherData {
     // Rate-limiter for spawned checksum tasks.
     semaphore: std::sync::Arc<tokio::sync::Semaphore>,
 
-    results_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    // Counts total number of spawned checksum tasks.
+    spawn_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
-    receiver: tokio::sync::mpsc::Receiver<ChecksumResult>,
+}
+
+impl ChecksumTaskDispatcherData {
+    pub fn new(
+        spawn_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        sender: tokio::sync::mpsc::Sender<ChecksumResult>,
+    ) -> Self {
+        Self {
+            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_TASKS)),
+            spawn_counter,
+            sender,
+        }
+    }
 }
 
 // Sends a checksum task result downstream to the collector task.
@@ -77,22 +86,52 @@ async fn checksum_task(
     semaphore_clone.add_permits(1);
 }
 
-impl ChecksumTaskManager {
-    pub fn new() -> Self {
-        let (sender, receiver) = tokio::sync::mpsc::channel(MAX_TASKS);
-        Self {
-            sums: Default::default(),
-            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_TASKS)),
-            results_counter: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            sender: sender,
-            receiver: receiver,
+async fn collector_task(
+    mut receiver: tokio::sync::mpsc::Receiver<ChecksumResult>,
+    spawn_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+) -> Vec<ChecksumWithPath> {
+    let mut sums: Vec<ChecksumWithPath> = Vec::new();
+    let mut errors: usize = 0;
+    loop {
+        if let Some(result) = receiver.recv().await {
+            match result {
+                Ok(digest_with_path) => sums.push(digest_with_path),
+                Err(_) => errors += 1,
+            }
+        }
+        if sums.len() + errors == spawn_counter.load(std::sync::atomic::Ordering::SeqCst) {
+            return sums;
         }
     }
+}
 
-    async fn spawn_task(&mut self, path: std::path::PathBuf) {
-        self.results_counter
+// Spawns the collector task that listens for checksum results
+// provided by the checksum tasks.
+async fn spawn_collector() -> (ChecksumTaskDispatcherData, ChecksumTaskJoinHandle) {
+    let (sender, receiver) = tokio::sync::mpsc::channel(MAX_TASKS);
+    let spawn_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let spawn_counter_clone = spawn_counter.clone();
+    let join_handle =
+        tokio::task::spawn(async move { collector_task(receiver, spawn_counter_clone).await });
+    (
+        ChecksumTaskDispatcherData::new(spawn_counter, sender),
+        join_handle,
+    )
+}
+
+async fn dispatch_checksum_tasks(context: ChecksumTaskDispatcherData) {
+    // TODO(j39m): Fix the hardcoded path.
+    let walk_iter = walkdir::WalkDir::new("/home/kalvin/.config").into_iter();
+    for entry in walk_iter.filter_entry(|e| {
+        !e.file_name()
+            .to_str()
+            .map(|path| path.starts_with("."))
+            .unwrap_or(false)
+    }) {
+        context
+            .spawn_counter
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let permit = self.semaphore.acquire().await.unwrap();
+        let permit = context.semaphore.acquire().await.unwrap();
 
         // Icky workaround for not being able to pass `SemaphorePermit`
         // directly into a spawned task. Note that new permits are added
@@ -101,41 +140,31 @@ impl ChecksumTaskManager {
         // See also: https://github.com/tokio-rs/tokio/issues/1998
         permit.forget();
 
-        let sender = self.sender.clone();
-        let semaphore_clone = self.semaphore.clone();
-        tokio::task::spawn_blocking(move || checksum_task(path, sender, semaphore_clone));
-    }
-
-    async fn collect_checksum_results(&mut self) {
-        loop {
-            if let Some(result) = self.receiver.recv().await {
-                match result {
-                    Ok(digest_with_path) => self.sums.push(digest_with_path),
-                    Err(e) => panic!("BUG from checksum task: {:?}", e),
-                }
-            }
-            if self.sums.len()
-                == self
-                    .results_counter
-                    .load(std::sync::atomic::Ordering::SeqCst)
-            {
-                return;
-            }
-        }
+        let sender = context.sender.clone();
+        let semaphore_clone = context.semaphore.clone();
+        tokio::task::spawn_blocking(move || {
+            checksum_task(entry.unwrap().path().to_path_buf(), sender, semaphore_clone)
+        });
     }
 }
 
-async fn checksum_impl() -> Result<String, ZakopaneError> {
-    // *    Walk the target path.
-    // *    If we can, then spawn a task, providing the current path
-    //      in the walk and a cloned transmitter.
-    // *    Call `poll_recv()` on the receiver repeatedly, updating
-    //      our checksum map and `join()`ing the completed tasks.
-    todo!()
+fn pretty_format_checksums(checksums: Vec<ChecksumWithPath>) -> String {
+    let mut buffer: Vec<String> = Vec::new();
+    for digest_line in checksums {
+        buffer.push(format!("{}  ./{}", digest_line.checksum, digest_line.path));
+    }
+    buffer.join("\n")
 }
 
-#[allow(dead_code)]
-pub fn checksum() -> Result<String, ZakopaneError> {
+async fn checksum_impl() -> String {
+    let (dispatcher_data, join_handle) = spawn_collector().await;
+    dispatch_checksum_tasks(dispatcher_data).await;
+    let mut checksums: Vec<ChecksumWithPath> = join_handle.await.unwrap();
+    checksums.sort_by(|a, b| a.path.cmp(&b.path));
+    pretty_format_checksums(checksums)
+}
+
+pub fn checksum() -> String {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(checksum_impl())
 }

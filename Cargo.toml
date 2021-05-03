@@ -18,3 +18,4 @@ indoc = "^1"
 clap = "^2"
 tokio = { version = "1", features = ["full"] }
 crypto-hash = "^0.3"
+walkdir = "^2"
