@@ -5,7 +5,7 @@ use std::clone::Clone;
 
 use yaml_rust::{Yaml, YamlLoader};
 
-use crate::structs::CliOptions;
+use crate::structs::CompareCliOptions;
 use crate::structs::ZakopaneError;
 
 // Represents a single zakopane config policy.
@@ -137,7 +137,7 @@ fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakopaneError> {
 
 // Returns the default policy for this invocation.
 fn get_default_policy(
-    options: &CliOptions,
+    options: &CompareCliOptions,
     yaml_config: &Option<Yaml>,
 ) -> Result<Policy, ZakopaneError> {
     if let Some(default_from_cli) = options.default_policy {
@@ -162,7 +162,7 @@ fn get_policies(yaml_config: &Option<Yaml>) -> Result<Policies, ZakopaneError> {
 impl Config {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding Config.
-    pub fn new(options: &CliOptions) -> Result<Config, ZakopaneError> {
+    pub fn new(options: &CompareCliOptions) -> Result<Config, ZakopaneError> {
         let yaml_config: Option<Yaml> = match options.config_path {
             Some(path) => {
                 let config = crate::helpers::ingest_file(path)?;
@@ -210,15 +210,15 @@ impl Config {
 }
 
 pub mod test_support {
-    use crate::structs::CliOptions;
+    use crate::structs::CompareCliOptions;
     use std::path::PathBuf;
 
-    // Creates a CliOptions instance for testing.
+    // Creates a CompareCliOptions instance for testing.
     pub fn options<'a>(
         config_path: Option<&'a str>,
         default_policy: Option<&'a str>,
-    ) -> CliOptions<'a> {
-        CliOptions {
+    ) -> CompareCliOptions<'a> {
+        CompareCliOptions {
             config_path: config_path,
             default_policy: default_policy,
         }

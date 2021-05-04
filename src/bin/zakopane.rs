@@ -1,6 +1,6 @@
 use libzakopane::config::Config;
 use libzakopane::snapshot::Snapshot;
-use libzakopane::structs::CliOptions;
+use libzakopane::structs::CompareCliOptions;
 use libzakopane::structs::ZakopaneError;
 
 use clap::{App, Arg, ArgMatches};
@@ -26,7 +26,7 @@ fn complete_initialization(matches: &ArgMatches) -> Result<OperationalData, Zako
     let old_contents = libzakopane::helpers::ingest_file(old_snapshot_path)?;
     let new_contents = libzakopane::helpers::ingest_file(new_snapshot_path)?;
 
-    let options = CliOptions {
+    let options = CompareCliOptions {
         config_path: matches.value_of(CONFIG_FILE_ARG_NAME),
         default_policy: matches.value_of(DEFAULT_POLICY_ARG_NAME),
     };
