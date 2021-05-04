@@ -227,7 +227,8 @@ pub mod test_support {
     // Returns |path| with the cargo test data directory prepended.
     pub fn data_path(path: &str) -> PathBuf {
         let mut result = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        result.push("config-test-data/");
+        result.push("tests");
+        result.push("config-test-data");
         result.push(path);
         result
     }
