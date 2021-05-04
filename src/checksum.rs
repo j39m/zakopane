@@ -66,6 +66,7 @@ fn checksum_task_impl(path: std::path::PathBuf, sender: tokio::sync::mpsc::Sende
     checksum_task_send_result(Ok(ChecksumWithPath::new(checksum, path)), sender);
 }
 
+// Represents a spawned checksum task.
 fn checksum_task(
     path: std::path::PathBuf,
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
@@ -77,6 +78,7 @@ fn checksum_task(
     semaphore_clone.add_permits(1);
 }
 
+// Represents the spawned collection task.
 async fn collector_task(
     mut receiver: tokio::sync::mpsc::Receiver<ChecksumResult>,
     spawn_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -147,6 +149,10 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
     }
 }
 
+// Pretty-prints the sorted `checksums` in a format much like what the
+// `sha256sum` binary outputs.
+//
+// Note that the standard zakopane snapshot header is not added here.
 fn pretty_format_checksums(path: std::path::PathBuf, checksums: Vec<ChecksumWithPath>) -> String {
     let mut buffer: Vec<String> = Vec::new();
     for digest_line in checksums {
