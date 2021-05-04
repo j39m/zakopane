@@ -105,9 +105,7 @@ async fn spawn_collector(
 ) -> (ChecksumTaskDispatcherData, ChecksumTaskJoinHandle) {
     let (sender, receiver) = tokio::sync::mpsc::channel(MAX_TASKS);
     let spawn_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let spawn_counter_clone = spawn_counter.clone();
-    let join_handle =
-        tokio::task::spawn(async move { collector_task(receiver, spawn_counter_clone).await });
+    let join_handle = tokio::task::spawn(collector_task(receiver, spawn_counter.clone()));
     (
         ChecksumTaskDispatcherData::new(path, spawn_counter, sender),
         join_handle,
