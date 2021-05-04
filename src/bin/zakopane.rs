@@ -83,10 +83,25 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
                         .required(true),
                 ),
         )
+        .subcommand(
+            App::new("checksum")
+                .about("produces checksums for a directory")
+                .arg(
+                    Arg::with_name("target-path")
+                        .help("directory to checksum")
+                        .index(1)
+                        .required(true),
+                ),
+        )
         .get_matches();
 
     if let Some(ref matches) = matches.subcommand_matches("compare") {
         return compare_data_from(&matches);
+    }
+    if let Some(ref matches) = matches.subcommand_matches("checksum") {
+        return Ok(SubcommandData::Checksum(std::path::PathBuf::from(
+            matches.value_of("target-path").unwrap(),
+        )));
     }
     Err(ZakopaneError::Unknown("not implemented".to_string()))
 }
@@ -102,6 +117,10 @@ fn do_compare(data: CompareData) {
     println!("{}", violations);
 }
 
+fn do_checksum(path: std::path::PathBuf) {
+    eprintln!("not implemented: checksum {}", path.display());
+}
+
 fn main() {
     let subcommand = match initialize() {
         Ok(data) => data,
@@ -112,6 +131,6 @@ fn main() {
     };
     match subcommand {
         SubcommandData::Compare(compare_data) => return do_compare(compare_data),
-        _ => eprintln!("not implemented"),
+        SubcommandData::Checksum(target_path) => return do_checksum(target_path),
     }
 }
