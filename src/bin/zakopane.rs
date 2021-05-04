@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use libzakopane::config::Config;
 use libzakopane::snapshot::Snapshot;
 use libzakopane::structs::CompareCliOptions;
@@ -117,8 +119,40 @@ fn do_compare(data: CompareData) {
     println!("{}", violations);
 }
 
+fn generate_snapshot_header(
+    path: &std::path::PathBuf,
+    start_time: &chrono::DateTime<chrono::offset::Local>,
+) -> String {
+    let buffer: Vec<String> = vec![
+        format!("zakopane: {}", start_time),
+        format!("zakopane: {}", path.display()),
+        String::new(),
+        String::new(),
+    ];
+
+    buffer.join("\n")
+}
+
 fn do_checksum(path: std::path::PathBuf) {
-    eprintln!("not implemented: checksum {}", path.display());
+    if !path.is_dir() {
+        eprintln!("``{}'' is not a dir", path.display());
+        return;
+    }
+    let start_time: chrono::DateTime<chrono::offset::Local> = chrono::offset::Local::now();
+    println!("checksum ``{}'' at {}", path.display(), start_time);
+
+    let header = generate_snapshot_header(&path, &start_time);
+    let checksums = libzakopane::checksum(path);
+    let output_basename = format!("{}.txt", start_time.format("%Y-%m-%d-%H%M"));
+    let mut output_file =
+        std::fs::File::create(&output_basename).unwrap();
+
+    output_file.write_all(header.as_ref()).unwrap();
+    output_file.write_all(checksums.as_ref()).unwrap();
+    println!("wrote ``{}''", output_basename);
+
+    let end_time: chrono::DateTime<chrono::offset::Local> = chrono::offset::Local::now();
+    println!("finished at {} ({}s elapsed)", end_time, (end_time - start_time).num_seconds());
 }
 
 fn main() {
