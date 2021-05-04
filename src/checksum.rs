@@ -113,12 +113,19 @@ async fn spawn_collector(
 }
 
 async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
-    let walk_iter = walkdir::WalkDir::new(context.path).into_iter();
+    let walk_iter = walkdir::WalkDir::new(&context.path).into_iter();
+    // The `filter_entry()` call is crafted s.t.
+    // *    we skip and don't descend into hidden directories
+    // *    unless the hidden directory is the target directory, because
+    //      the target directory is always the first yielded value from
+    //      the `WalkDir`.
     for entry in walk_iter.filter_entry(|e| {
-        !e.file_name()
-            .to_str()
-            .map(|path| path.starts_with(".")) // XXX(j39m)
-            .unwrap_or(false)
+        e.path() == &context.path
+            || !e
+                .file_name()
+                .to_str()
+                .map(|path| path.starts_with("."))
+                .unwrap_or(false)
     }) {
         if let Ok(direntry) = entry {
             let path = direntry.into_path();
