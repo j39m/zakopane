@@ -1,20 +1,18 @@
 use indoc::indoc;
 
 // Returns `path` with the cargo test data directory prepended.
-fn data_path(path: Option<&str>) -> std::path::PathBuf {
+fn data_path(path: &str) -> std::path::PathBuf {
     let mut result = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     result.push("tests");
     result.push("checksum-test-data");
-    if let Some(provided_path) = path {
-        result.push(provided_path);
-    }
+    result.push(path);
     result
 }
 
 #[test]
 fn basic_checksum() {
     assert_eq!(
-        libzakopane::checksum(data_path(Some("basic-test"))),
+        libzakopane::checksum(data_path("basic-test")),
         indoc!(
             r#"
             8ec39490ae7374067429174fd55867628145b9d20b4871a10aba36d24f3a5a33  ./random-data-00
@@ -27,7 +25,7 @@ fn basic_checksum() {
 #[test]
 fn checksum_hidden_target_directory() {
     assert_eq!(
-        libzakopane::checksum(data_path(Some("hidden-target-test/.hidden/"))),
+        libzakopane::checksum(data_path("hidden-target-test/.hidden/")),
         indoc!(
             r#"
             4bd4b6cff60b4bd1f618ed8fa6bf20c86bc7bc297498b9d43612713cf756bbd8  ./random-data-00
