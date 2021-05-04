@@ -10,16 +10,22 @@ const CONFIG_FILE_ARG_NAME: &'static str = "config";
 const OLD_SNAPSHOT_PATH_ARG_NAME: &'static str = "old-snapshot-path";
 const NEW_SNAPSHOT_PATH_ARG_NAME: &'static str = "new-snapshot-path";
 
-// Holds one instance of each struct necessary to operate.
-struct OperationalData {
+// Holds one instance of each struct necessary to execute the `compare`
+// subcommand.
+struct CompareData {
     config: Config,
     old_snapshot: Snapshot,
     new_snapshot: Snapshot,
 }
 
+enum SubcommandData {
+    Compare(CompareData),
+    Checksum(std::path::PathBuf),
+}
+
 // Reads parsed command-line arguments and returns the appropriate
 // operational data. Can abort the program on error.
-fn complete_initialization(matches: &ArgMatches) -> Result<OperationalData, ZakopaneError> {
+fn compare_data_from(matches: &ArgMatches) -> Result<SubcommandData, ZakopaneError> {
     // The two snapshot paths are required, so these are safe to unwrap.
     let old_snapshot_path = matches.value_of(OLD_SNAPSHOT_PATH_ARG_NAME).unwrap();
     let new_snapshot_path = matches.value_of(NEW_SNAPSHOT_PATH_ARG_NAME).unwrap();
@@ -31,16 +37,16 @@ fn complete_initialization(matches: &ArgMatches) -> Result<OperationalData, Zako
         default_policy: matches.value_of(DEFAULT_POLICY_ARG_NAME),
     };
 
-    Ok(OperationalData {
+    Ok(SubcommandData::Compare(CompareData {
         config: Config::new(&options)?,
         old_snapshot: Snapshot::new(&old_contents)?,
         new_snapshot: Snapshot::new(&new_contents)?,
-    })
+    }))
 }
 
 // Begins parsing command-line arguments. Can abort the program on
 // error.
-fn initialize() -> Result<OperationalData, ZakopaneError> {
+fn initialize() -> Result<SubcommandData, ZakopaneError> {
     let matches = App::new("zakopane")
         .version("0.2.0")
         .author("j39m")
@@ -80,26 +86,32 @@ fn initialize() -> Result<OperationalData, ZakopaneError> {
         .get_matches();
 
     if let Some(ref matches) = matches.subcommand_matches("compare") {
-        return complete_initialization(&matches);
+        return compare_data_from(&matches);
     }
     Err(ZakopaneError::Unknown("not implemented".to_string()))
 }
 
+fn do_compare(data: CompareData) {
+    let CompareData {
+        config,
+        new_snapshot,
+        old_snapshot,
+    } = data;
+    assert!(config.rules() > 0);
+    let violations = libzakopane::compare(&config, &old_snapshot, &new_snapshot);
+    println!("{}", violations);
+}
+
 fn main() {
-    let operational_data = match initialize() {
+    let subcommand = match initialize() {
         Ok(data) => data,
         Err(error) => {
             eprintln!("{}", error.to_string());
             std::process::exit(1);
         }
     };
-
-    let OperationalData {
-        config,
-        new_snapshot,
-        old_snapshot,
-    } = operational_data;
-    assert!(config.rules() > 0);
-    let violations = libzakopane::compare(&config, &old_snapshot, &new_snapshot);
-    println!("{}", violations);
+    match subcommand {
+        SubcommandData::Compare(compare_data) => return do_compare(compare_data),
+        _ => eprintln!("not implemented"),
+    }
 }
