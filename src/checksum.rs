@@ -140,9 +140,7 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
 
             let sender = context.sender.clone();
             let semaphore_clone = context.semaphore.clone();
-            tokio::task::spawn_blocking(move || checksum_task(path, sender, semaphore_clone))
-                .await
-                .unwrap();
+            tokio::task::spawn_blocking(move || checksum_task(path, sender, semaphore_clone));
         }
     }
 }
