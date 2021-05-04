@@ -154,19 +154,16 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
 //
 // Note that the standard zakopane snapshot header is not added here.
 fn pretty_format_checksums(path: std::path::PathBuf, checksums: Vec<ChecksumWithPath>) -> String {
-    let mut buffer: Vec<String> = Vec::new();
-    for digest_line in checksums {
-        buffer.push(format!(
-            "{}  ./{}",
-            digest_line.checksum,
-            digest_line
-                .path
-                .strip_prefix(&path)
-                .unwrap()
-                .to_str()
-                .unwrap()
-        ));
-    }
+    let mut buffer: Vec<String> = checksums
+        .into_iter()
+        .map(|e| {
+            format!(
+                "{}  ./{}",
+                e.checksum,
+                e.path.strip_prefix(&path).unwrap().to_str().unwrap()
+            )
+        })
+        .collect();
     buffer.push(String::new());
     buffer.join("\n")
 }
