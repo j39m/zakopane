@@ -6,15 +6,12 @@ const MAX_TASKS: usize = 8;
 
 struct ChecksumWithPath {
     checksum: String,
-    path: String,
+    path: std::path::PathBuf,
 }
 
 impl ChecksumWithPath {
-    pub fn new(c: String, p: String) -> Self {
-        Self {
-            checksum: c,
-            path: p,
-        }
+    pub fn new(checksum: String, path: std::path::PathBuf) -> Self {
+        Self { checksum, path }
     }
 }
 
@@ -62,13 +59,7 @@ fn checksum_task_impl(path: std::path::PathBuf, sender: tokio::sync::mpsc::Sende
         Err(e) => return checksum_task_send_result(Err(e), sender),
     };
     let checksum = crypto_hash::hex_digest(crypto_hash::Algorithm::SHA256, contents.as_ref());
-    checksum_task_send_result(
-        Ok(ChecksumWithPath::new(
-            checksum,
-            String::from(path.to_str().unwrap()),
-        )),
-        sender,
-    );
+    checksum_task_send_result(Ok(ChecksumWithPath::new(checksum, path)), sender);
 }
 
 fn checksum_task(
@@ -154,7 +145,11 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
 fn pretty_format_checksums(checksums: Vec<ChecksumWithPath>) -> String {
     let mut buffer: Vec<String> = Vec::new();
     for digest_line in checksums {
-        buffer.push(format!("{}  ./{}", digest_line.checksum, digest_line.path));
+        buffer.push(format!(
+            "{}  ./{}",
+            digest_line.checksum,
+            digest_line.path.to_str().unwrap()
+        ));
     }
     buffer.join("\n")
 }
