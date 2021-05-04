@@ -1,0 +1,4 @@
+You found me!
+
+`libzakopane::checksum()` should not descend into here in the hidden
+files test.
