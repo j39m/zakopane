@@ -58,11 +58,11 @@ fn checksum_task_send_result(
 // Separated from `checksum_task()` to ensure the `add_permits()` call is
 // always hit.
 fn checksum_task_impl(path: std::path::PathBuf, sender: tokio::sync::mpsc::Sender<ChecksumResult>) {
-    let contents = match crate::helpers::ingest_file(path.to_str().unwrap()) {
+    let contents = match std::fs::read(&path).map_err(ZakopaneError::Io) {
         Ok(contents) => contents,
         Err(e) => return checksum_task_send_result(Err(e), sender),
     };
-    let checksum = crypto_hash::hex_digest(crypto_hash::Algorithm::SHA256, contents.as_ref());
+    let checksum = crypto_hash::hex_digest(crypto_hash::Algorithm::SHA256, &contents);
     checksum_task_send_result(Ok(ChecksumWithPath::new(checksum, path)), sender);
 }
 
