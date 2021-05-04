@@ -167,6 +167,7 @@ fn pretty_format_checksums(path: std::path::PathBuf, checksums: Vec<ChecksumWith
                 .unwrap()
         ));
     }
+    buffer.push(String::new());
     buffer.join("\n")
 }
 
