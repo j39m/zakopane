@@ -6,7 +6,7 @@ use libzakopane::structs::ChecksumCliOptions;
 use libzakopane::structs::CompareCliOptions;
 use libzakopane::structs::ZakopaneError;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{value_t, App, Arg, ArgMatches};
 
 const DEFAULT_POLICY_ARG_NAME: &'static str = "default-policy";
 const CONFIG_FILE_ARG_NAME: &'static str = "config";
@@ -23,7 +23,7 @@ struct CompareData {
 
 enum SubcommandData {
     Compare(CompareData),
-    Checksum(std::path::PathBuf),
+    Checksum(ChecksumCliOptions),
 }
 
 // Reads parsed command-line arguments and returns the appropriate
@@ -94,6 +94,13 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
                         .help("directory to checksum")
                         .index(1)
                         .required(true),
+                )
+                .arg(
+                    Arg::with_name("max-tasks")
+                        .short("j")
+                        .takes_value(true)
+                        .help("maximum number of simultaneous checksum tasks")
+                        .default_value("8"),
                 ),
         )
         .get_matches();
@@ -102,9 +109,11 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
         return compare_data_from(&matches);
     }
     if let Some(ref matches) = matches.subcommand_matches("checksum") {
-        return Ok(SubcommandData::Checksum(std::path::PathBuf::from(
-            matches.value_of("target-path").unwrap(),
-        )));
+        let options = ChecksumCliOptions::new(
+            std::path::PathBuf::from(matches.value_of("target-path").unwrap()),
+            clap::value_t!(matches, "max-tasks", usize).unwrap_or_else(|e| e.exit()),
+        )?;
+        return Ok(SubcommandData::Checksum(options));
     }
     panic!("BUG: unhandled subcommand");
 }
@@ -134,16 +143,16 @@ fn generate_snapshot_header(
     buffer.join("\n")
 }
 
-fn do_checksum(path: std::path::PathBuf) {
-    if !path.is_dir() {
-        eprintln!("``{}'' is not a dir", path.display());
+fn do_checksum(options: ChecksumCliOptions) {
+    if !options.path.is_dir() {
+        eprintln!("``{}'' is not a dir", options.path.display());
         return;
     }
     let start_time: chrono::DateTime<chrono::offset::Local> = chrono::offset::Local::now();
-    println!("checksum ``{}'' at {}", path.display(), start_time);
+    println!("checksum ``{}'' at {}", options.path.display(), start_time);
 
-    let header = generate_snapshot_header(&path, &start_time);
-    let checksums = libzakopane::checksum(ChecksumCliOptions::new(path, 8).unwrap());
+    let header = generate_snapshot_header(&options.path, &start_time);
+    let checksums = libzakopane::checksum(options);
     let output_basename = format!("{}.txt", start_time.format("%Y-%m-%d-%H%M"));
     let mut output_file = std::fs::File::create(&output_basename).unwrap();
 
@@ -169,6 +178,6 @@ fn main() {
     };
     match subcommand {
         SubcommandData::Compare(compare_data) => return do_compare(compare_data),
-        SubcommandData::Checksum(target_path) => return do_checksum(target_path),
+        SubcommandData::Checksum(options) => return do_checksum(options),
     }
 }
