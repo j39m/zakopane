@@ -1,5 +1,6 @@
 // Implements the `zakopane checksum` subcommand.
 
+use std::convert::TryInto;
 use std::io::Read;
 use std::io::Write;
 
@@ -7,6 +8,7 @@ use crate::structs::ChecksumCliOptions;
 use crate::structs::ZakopaneError;
 
 const READ_SIZE: usize = 2 << 20;
+const BIG_FILE_BYTES: usize = 2 << 27;
 
 struct ChecksumWithPath {
     checksum: String,
@@ -46,6 +48,40 @@ impl ChecksumTaskDispatcherData {
             spawn_counter,
             sender,
         }
+    }
+}
+
+struct FileDetails {
+    is_file: bool,
+    is_big: bool,
+}
+
+fn get_file_details(path: &std::path::PathBuf) -> FileDetails {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => {
+            return FileDetails {
+                is_file: false,
+                is_big: false,
+            }
+        }
+    };
+
+    if !metadata.file_type().is_file() {
+        return FileDetails {
+            is_file: false,
+            is_big: false,
+        };
+    }
+    if metadata.len() > BIG_FILE_BYTES.try_into().unwrap() {
+        return FileDetails {
+            is_file: true,
+            is_big: true,
+        };
+    }
+    FileDetails {
+        is_file: true,
+        is_big: false,
     }
 }
 
@@ -148,18 +184,28 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
     }) {
         if let Ok(direntry) = entry {
             let path = direntry.into_path();
-            if let Ok(metadata) = std::fs::symlink_metadata(&path) {
-                if !metadata.file_type().is_file() {
-                    continue;
-                }
-            } else {
+            let file_details = get_file_details(&path);
+            if !file_details.is_file {
                 continue;
             }
+
+            // If the file is "big" (arbitrarily defined), attempt to
+            // seize all permits to force us momentarily to work with a
+            // bit less I/O contention.
+            let permit = if file_details.is_big {
+                context.semaphore.clone().acquire_owned().await.unwrap()
+            } else {
+                context
+                    .semaphore
+                    .clone()
+                    .acquire_many_owned(context.cli_options.max_tasks.try_into().unwrap())
+                    .await
+                    .unwrap()
+            };
 
             context
                 .spawn_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let permit = context.semaphore.clone().acquire_owned().await.unwrap();
             let sender = context.sender.clone();
             tokio::task::spawn_blocking(move || checksum_task(path, sender, permit));
         }
