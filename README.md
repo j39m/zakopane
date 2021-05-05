@@ -14,7 +14,6 @@ recursive."
 
 ```sh
 # Captures checksums of all files under <directory>.
-# Not presently implemented.
 zakopane checksum <directory>
 
 # Compares zakopane snapshots <before> and <after> using rules defined
