@@ -22,6 +22,11 @@ fn basic_checksum() {
     );
 }
 
+// Verifies
+// *    that `zakopane checksum` does not descend into hidden
+//      directories but that
+// *    it makes the sole exception for the case when the target path is
+//      itself a hidden directory.
 #[test]
 fn checksum_hidden_target_directory() {
     assert_eq!(
@@ -30,6 +35,20 @@ fn checksum_hidden_target_directory() {
             r#"
             4bd4b6cff60b4bd1f618ed8fa6bf20c86bc7bc297498b9d43612713cf756bbd8  ./random-data-00
             35190dff137f1cc1a08df389ab6d0ba091f20a12098e062780ce0b5ccd796129  ./random-data-01
+            "#
+        )
+    );
+}
+
+// Verifies that `zakopane checksum` does not follow symlinks when
+// producing snapshot data.
+#[test]
+fn checksum_skipping_symlinks() {
+    assert_eq!(
+        libzakopane::checksum(data_path("symlink-test")),
+        indoc!(
+            r#"
+            e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./empty-file
             "#
         )
     );

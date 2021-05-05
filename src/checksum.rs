@@ -129,7 +129,11 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
     }) {
         if let Ok(direntry) = entry {
             let path = direntry.into_path();
-            if !path.is_file() {
+            if let Ok(metadata) = std::fs::symlink_metadata(&path) {
+                if !metadata.file_type().is_file() {
+                    continue;
+                }
+            } else {
                 continue;
             }
 
