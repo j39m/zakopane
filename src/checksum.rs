@@ -108,9 +108,13 @@ async fn collector_task(
             }
         }
         if sums.len() + errors == spawn_counter.load(std::sync::atomic::Ordering::SeqCst) {
-            return sums;
+            break;
         }
     }
+    if errors != 0 {
+        eprintln!("WARNING: {} errors collected", errors);
+    }
+    sums
 }
 
 // Spawns the collector task that listens for checksum results
