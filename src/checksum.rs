@@ -81,16 +81,16 @@ fn checksum_task_impl(path: std::path::PathBuf) -> ChecksumResult {
 }
 
 // Represents a spawned checksum task.
+//
+// `_permit` is moved into this checksum task simply to hold onto the
+// semaphore-dispensed resource for the duration of this task.
 fn checksum_task(
     path: std::path::PathBuf,
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
-    semaphore_clone: std::sync::Arc<tokio::sync::Semaphore>,
+    _permit: tokio::sync::OwnedSemaphorePermit,
 ) {
     let result = checksum_task_impl(path);
     checksum_task_send_result(result, sender);
-
-    // See comment in `ChecksumTaskManager::spawn_task()`.
-    semaphore_clone.add_permits(1);
 }
 
 // Represents the spawned collection task.
@@ -155,18 +155,9 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
             context
                 .spawn_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let permit = context.semaphore.acquire().await.unwrap();
-
-            // Icky workaround for not being able to pass `SemaphorePermit`
-            // directly into a spawned task. Note that new permits are added
-            // later in the checksum task.
-            //
-            // See also: https://github.com/tokio-rs/tokio/issues/1998
-            permit.forget();
-
+            let permit = context.semaphore.clone().acquire_owned().await.unwrap();
             let sender = context.sender.clone();
-            let semaphore_clone = context.semaphore.clone();
-            tokio::task::spawn_blocking(move || checksum_task(path, sender, semaphore_clone));
+            tokio::task::spawn_blocking(move || checksum_task(path, sender, permit));
         }
     }
 }
