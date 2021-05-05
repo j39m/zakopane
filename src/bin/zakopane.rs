@@ -2,6 +2,7 @@ use std::io::Write;
 
 use libzakopane::config::Config;
 use libzakopane::snapshot::Snapshot;
+use libzakopane::structs::ChecksumCliOptions;
 use libzakopane::structs::CompareCliOptions;
 use libzakopane::structs::ZakopaneError;
 
@@ -142,7 +143,7 @@ fn do_checksum(path: std::path::PathBuf) {
     println!("checksum ``{}'' at {}", path.display(), start_time);
 
     let header = generate_snapshot_header(&path, &start_time);
-    let checksums = libzakopane::checksum(path);
+    let checksums = libzakopane::checksum(ChecksumCliOptions::new(path, 8).unwrap());
     let output_basename = format!("{}.txt", start_time.format("%Y-%m-%d-%H%M"));
     let mut output_file = std::fs::File::create(&output_basename).unwrap();
 

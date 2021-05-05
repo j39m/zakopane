@@ -35,3 +35,21 @@ pub struct CompareCliOptions<'a> {
     // A default policy on the command-line is optional.
     pub default_policy: Option<&'a str>,
 }
+
+#[derive(Debug)]
+pub struct ChecksumCliOptions {
+    pub path: std::path::PathBuf,
+    pub max_tasks: usize,
+}
+
+impl ChecksumCliOptions {
+    pub fn new(path: std::path::PathBuf, max_tasks: usize) -> Result<Self, ZakopaneError> {
+        if max_tasks < 1 {
+            return Err(ZakopaneError::CommandLine(format!(
+                "invalid task cap: ``{}''",
+                max_tasks
+            )));
+        }
+        Ok(Self { path, max_tasks })
+    }
+}

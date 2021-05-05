@@ -3,6 +3,7 @@
 use std::io::Read;
 use std::io::Write;
 
+use crate::structs::ChecksumCliOptions;
 use crate::structs::ZakopaneError;
 
 const MAX_TASKS: usize = 8;
@@ -185,15 +186,15 @@ fn pretty_format_checksums(path: std::path::PathBuf, checksums: Vec<ChecksumWith
     buffer.join("\n")
 }
 
-async fn checksum_impl(path: std::path::PathBuf) -> String {
-    let (dispatcher_data, join_handle) = spawn_collector(path.clone()).await;
+async fn checksum_impl(options: ChecksumCliOptions) -> String {
+    let (dispatcher_data, join_handle) = spawn_collector(options.path.clone()).await;
     spawn_checksum_tasks(dispatcher_data).await;
     let mut checksums: Vec<ChecksumWithPath> = join_handle.await.unwrap();
     checksums.sort_by(|a, b| a.path.cmp(&b.path));
-    pretty_format_checksums(path, checksums)
+    pretty_format_checksums(options.path, checksums)
 }
 
-pub fn checksum(path: std::path::PathBuf) -> String {
+pub fn checksum(options: ChecksumCliOptions) -> String {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(checksum_impl(path))
+    runtime.block_on(checksum_impl(options))
 }

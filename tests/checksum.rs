@@ -1,18 +1,19 @@
 use indoc::indoc;
 
-// Returns `path` with the cargo test data directory prepended.
-fn data_path(path: &str) -> std::path::PathBuf {
+// Returns a `ChecksumCliOptions` targeting the cargo test data
+// directory for a checksum run.
+fn options_for_testing(path: &str) -> libzakopane::structs::ChecksumCliOptions {
     let mut result = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     result.push("tests");
     result.push("checksum-test-data");
     result.push(path);
-    result
+    libzakopane::structs::ChecksumCliOptions::new(result, 8).unwrap()
 }
 
 #[test]
 fn basic_checksum() {
     assert_eq!(
-        libzakopane::checksum(data_path("basic-test")),
+        libzakopane::checksum(options_for_testing("basic-test")),
         indoc!(
             r#"
             8ec39490ae7374067429174fd55867628145b9d20b4871a10aba36d24f3a5a33  ./random-data-00
@@ -30,7 +31,7 @@ fn basic_checksum() {
 #[test]
 fn checksum_hidden_target_directory() {
     assert_eq!(
-        libzakopane::checksum(data_path("hidden-target-test/.hidden/")),
+        libzakopane::checksum(options_for_testing("hidden-target-test/.hidden/")),
         indoc!(
             r#"
             4bd4b6cff60b4bd1f618ed8fa6bf20c86bc7bc297498b9d43612713cf756bbd8  ./random-data-00
@@ -45,7 +46,7 @@ fn checksum_hidden_target_directory() {
 #[test]
 fn checksum_skipping_symlinks() {
     assert_eq!(
-        libzakopane::checksum(data_path("symlink-test")),
+        libzakopane::checksum(options_for_testing("symlink-test")),
         indoc!(
             r#"
             e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./empty-file
