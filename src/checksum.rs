@@ -6,7 +6,6 @@ use std::io::Write;
 use crate::structs::ChecksumCliOptions;
 use crate::structs::ZakopaneError;
 
-const MAX_TASKS: usize = 8;
 const READ_SIZE: usize = 2 << 20;
 
 struct ChecksumWithPath {
@@ -24,10 +23,10 @@ type ChecksumResult = Result<ChecksumWithPath, ZakopaneError>;
 type ChecksumTaskJoinHandle = tokio::task::JoinHandle<Vec<ChecksumWithPath>>;
 
 struct ChecksumTaskDispatcherData {
-    cli_options: ChecksumCliOptions,
-
     // Rate-limiter for spawned checksum tasks.
     semaphore: std::sync::Arc<tokio::sync::Semaphore>,
+
+    cli_options: ChecksumCliOptions,
 
     // Counts total number of spawned checksum tasks.
     spawn_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -42,8 +41,8 @@ impl ChecksumTaskDispatcherData {
         sender: tokio::sync::mpsc::Sender<ChecksumResult>,
     ) -> Self {
         Self {
+            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(cli_options.max_tasks)),
             cli_options,
-            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_TASKS)),
             spawn_counter,
             sender,
         }
@@ -123,7 +122,7 @@ async fn collector_task(
 async fn spawn_collector(
     options: ChecksumCliOptions,
 ) -> (ChecksumTaskDispatcherData, ChecksumTaskJoinHandle) {
-    let (sender, receiver) = tokio::sync::mpsc::channel(MAX_TASKS);
+    let (sender, receiver) = tokio::sync::mpsc::channel(options.max_tasks);
     let spawn_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let join_handle = tokio::task::spawn(collector_task(receiver, spawn_counter.clone()));
     (
