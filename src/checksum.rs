@@ -7,8 +7,8 @@ use std::io::Write;
 use crate::structs::ChecksumCliOptions;
 use crate::structs::ZakopaneError;
 
-const READ_SIZE: usize = 2 << 20;
-const BIG_FILE_BYTES: usize = 2 << 27;
+const READ_SIZE: usize = 1 << 20;
+const BIG_FILE_BYTES: usize = 1 << 27;
 
 struct ChecksumWithPath {
     checksum: String,
@@ -193,14 +193,14 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
             // seize all permits to force us momentarily to work with a
             // bit less I/O contention.
             let permit = if file_details.is_big {
-                context.semaphore.clone().acquire_owned().await.unwrap()
-            } else {
                 context
                     .semaphore
                     .clone()
                     .acquire_many_owned(context.cli_options.max_tasks.try_into().unwrap())
                     .await
                     .unwrap()
+            } else {
+                context.semaphore.clone().acquire_owned().await.unwrap()
             };
 
             context
