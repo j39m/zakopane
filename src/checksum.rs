@@ -1,8 +1,12 @@
 // Implements the `zakopane checksum` subcommand.
 
+use std::io::Read;
+use std::io::Write;
+
 use crate::structs::ZakopaneError;
 
 const MAX_TASKS: usize = 8;
+const READ_SIZE: usize = 2 << 20;
 
 struct ChecksumWithPath {
     checksum: String,
@@ -55,15 +59,25 @@ fn checksum_task_send_result(
     }
 }
 
-// Separated from `checksum_task()` to ensure the `add_permits()` call is
-// always hit.
-fn checksum_task_impl(path: std::path::PathBuf, sender: tokio::sync::mpsc::Sender<ChecksumResult>) {
-    let contents = match std::fs::read(&path).map_err(ZakopaneError::Io) {
-        Ok(contents) => contents,
-        Err(e) => return checksum_task_send_result(Err(e), sender),
-    };
-    let checksum = crypto_hash::hex_digest(crypto_hash::Algorithm::SHA256, &contents);
-    checksum_task_send_result(Ok(ChecksumWithPath::new(checksum, path)), sender);
+fn checksum_task_impl(path: std::path::PathBuf) -> ChecksumResult {
+    let mut hasher = crypto_hash::Hasher::new(crypto_hash::Algorithm::SHA256);
+    let mut buffer: Vec<u8> = vec![0; READ_SIZE];
+    let mut file = std::fs::File::open(&path).map_err(ZakopaneError::Io)?;
+    loop {
+        let read_bytes = file.read(&mut buffer).map_err(ZakopaneError::Io)?;
+        if read_bytes == 0 {
+            let checksum = hasher
+                .finish()
+                .into_iter()
+                .map(|byte| format!("{:02x}", byte))
+                .collect::<Vec<String>>()
+                .join("");
+            return Ok(ChecksumWithPath::new(checksum, path));
+        }
+        hasher
+            .write_all(&buffer[..read_bytes])
+            .map_err(ZakopaneError::Io)?;
+    }
 }
 
 // Represents a spawned checksum task.
@@ -72,7 +86,8 @@ fn checksum_task(
     sender: tokio::sync::mpsc::Sender<ChecksumResult>,
     semaphore_clone: std::sync::Arc<tokio::sync::Semaphore>,
 ) {
-    checksum_task_impl(path, sender);
+    let result = checksum_task_impl(path);
+    checksum_task_send_result(result, sender);
 
     // See comment in `ChecksumTaskManager::spawn_task()`.
     semaphore_clone.add_permits(1);
