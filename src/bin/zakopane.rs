@@ -105,7 +105,7 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
             matches.value_of("target-path").unwrap(),
         )));
     }
-    Err(ZakopaneError::Unknown("not implemented".to_string()))
+    panic!("BUG: unhandled subcommand");
 }
 
 fn do_compare(data: CompareData) {
