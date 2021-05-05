@@ -24,7 +24,7 @@ type ChecksumResult = Result<ChecksumWithPath, ZakopaneError>;
 type ChecksumTaskJoinHandle = tokio::task::JoinHandle<Vec<ChecksumWithPath>>;
 
 struct ChecksumTaskDispatcherData {
-    path: std::path::PathBuf,
+    cli_options: ChecksumCliOptions,
 
     // Rate-limiter for spawned checksum tasks.
     semaphore: std::sync::Arc<tokio::sync::Semaphore>,
@@ -37,12 +37,12 @@ struct ChecksumTaskDispatcherData {
 
 impl ChecksumTaskDispatcherData {
     pub fn new(
-        path: std::path::PathBuf,
+        cli_options: ChecksumCliOptions,
         spawn_counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
         sender: tokio::sync::mpsc::Sender<ChecksumResult>,
     ) -> Self {
         Self {
-            path,
+            cli_options,
             semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_TASKS)),
             spawn_counter,
             sender,
@@ -121,26 +121,26 @@ async fn collector_task(
 // Spawns the collector task that listens for checksum results
 // provided by the checksum tasks.
 async fn spawn_collector(
-    path: std::path::PathBuf,
+    options: ChecksumCliOptions,
 ) -> (ChecksumTaskDispatcherData, ChecksumTaskJoinHandle) {
     let (sender, receiver) = tokio::sync::mpsc::channel(MAX_TASKS);
     let spawn_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let join_handle = tokio::task::spawn(collector_task(receiver, spawn_counter.clone()));
     (
-        ChecksumTaskDispatcherData::new(path, spawn_counter, sender),
+        ChecksumTaskDispatcherData::new(options, spawn_counter, sender),
         join_handle,
     )
 }
 
 async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
-    let walk_iter = walkdir::WalkDir::new(&context.path).into_iter();
+    let walk_iter = walkdir::WalkDir::new(&context.cli_options.path).into_iter();
     // The `filter_entry()` call is crafted s.t.
     // *    we skip and don't descend into hidden directories
     // *    unless the hidden directory is the target directory, because
     //      the target directory is always the first yielded value from
     //      the `WalkDir`.
     for entry in walk_iter.filter_entry(|e| {
-        e.path() == &context.path
+        e.path() == &context.cli_options.path
             || !e
                 .file_name()
                 .to_str()
@@ -187,11 +187,12 @@ fn pretty_format_checksums(path: std::path::PathBuf, checksums: Vec<ChecksumWith
 }
 
 async fn checksum_impl(options: ChecksumCliOptions) -> String {
-    let (dispatcher_data, join_handle) = spawn_collector(options.path.clone()).await;
+    let path = options.path.clone();
+    let (dispatcher_data, join_handle) = spawn_collector(options).await;
     spawn_checksum_tasks(dispatcher_data).await;
     let mut checksums: Vec<ChecksumWithPath> = join_handle.await.unwrap();
     checksums.sort_by(|a, b| a.path.cmp(&b.path));
-    pretty_format_checksums(options.path, checksums)
+    pretty_format_checksums(path, checksums)
 }
 
 pub fn checksum(options: ChecksumCliOptions) -> String {
