@@ -40,6 +40,11 @@ pub struct CompareCliOptions<'a> {
 pub struct ChecksumCliOptions {
     pub path: std::path::PathBuf,
     pub max_tasks: usize,
+
+    // User-defined value for what constitutes a "big file" for which
+    // the checksum dispatcher will force single-threaded digest
+    // calculation.
+    pub big_file_bytes: Option<u64>,
 }
 
 impl ChecksumCliOptions {
@@ -50,6 +55,10 @@ impl ChecksumCliOptions {
                 max_tasks
             )));
         }
-        Ok(Self { path, max_tasks })
+        Ok(Self {
+            path,
+            max_tasks,
+            big_file_bytes: None,
+        })
     }
 }

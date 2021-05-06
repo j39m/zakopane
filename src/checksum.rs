@@ -8,7 +8,6 @@ use crate::structs::ChecksumCliOptions;
 use crate::structs::ZakopaneError;
 
 const READ_SIZE: usize = 1 << 20;
-const BIG_FILE_BYTES: usize = 1 << 27;
 
 struct ChecksumWithPath {
     checksum: String,
@@ -56,7 +55,7 @@ struct FileDetails {
     is_big: bool,
 }
 
-fn get_file_details(path: &std::path::PathBuf) -> FileDetails {
+fn get_file_details(path: &std::path::PathBuf, big_file_bytes: Option<u64>) -> FileDetails {
     let metadata = match std::fs::symlink_metadata(path) {
         Ok(m) => m,
         Err(_) => {
@@ -69,7 +68,11 @@ fn get_file_details(path: &std::path::PathBuf) -> FileDetails {
 
     FileDetails {
         is_file: metadata.file_type().is_file(),
-        is_big: metadata.len() > BIG_FILE_BYTES.try_into().unwrap(),
+        is_big: if let Some(val) = big_file_bytes {
+            metadata.len() > val
+        } else {
+            false
+        },
     }
 }
 
@@ -77,7 +80,7 @@ async fn get_semaphore_permit(
     path: &std::path::PathBuf,
     context: &ChecksumTaskDispatcherData,
 ) -> Option<tokio::sync::OwnedSemaphorePermit> {
-    let file_details = get_file_details(&path);
+    let file_details = get_file_details(&path, context.cli_options.big_file_bytes);
     if !file_details.is_file {
         return None;
     }
