@@ -73,6 +73,31 @@ fn get_file_details(path: &std::path::PathBuf) -> FileDetails {
     }
 }
 
+async fn get_semaphore_permit(
+    path: &std::path::PathBuf,
+    context: &ChecksumTaskDispatcherData,
+) -> Option<tokio::sync::OwnedSemaphorePermit> {
+    let file_details = get_file_details(&path);
+    if !file_details.is_file {
+        return None;
+    }
+
+    // If the file is "big" (arbitrarily defined by user), attempt to
+    // seize all permits to force us momentarily to work with a bit less
+    // I/O contention.
+    let permit = if file_details.is_big {
+        context
+            .semaphore
+            .clone()
+            .acquire_many_owned(context.cli_options.max_tasks.try_into().unwrap())
+            .await
+            .unwrap()
+    } else {
+        context.semaphore.clone().acquire_owned().await.unwrap()
+    };
+    Some(permit)
+}
+
 // Sends a checksum task result downstream to the collector task.
 fn checksum_task_send_result(
     result: ChecksumResult,
@@ -170,33 +195,21 @@ async fn spawn_checksum_tasks(context: ChecksumTaskDispatcherData) {
                 .map(|path| path.starts_with("."))
                 .unwrap_or(false)
     }) {
-        if let Ok(direntry) = entry {
-            let path = direntry.into_path();
-            let file_details = get_file_details(&path);
-            if !file_details.is_file {
-                continue;
-            }
-
-            // If the file is "big" (arbitrarily defined), attempt to
-            // seize all permits to force us momentarily to work with a
-            // bit less I/O contention.
-            let permit = if file_details.is_big {
-                context
-                    .semaphore
-                    .clone()
-                    .acquire_many_owned(context.cli_options.max_tasks.try_into().unwrap())
-                    .await
-                    .unwrap()
-            } else {
-                context.semaphore.clone().acquire_owned().await.unwrap()
-            };
-
-            context
-                .spawn_counter
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let sender = context.sender.clone();
-            tokio::task::spawn_blocking(move || checksum_task(path, sender, permit));
+        let path = match entry {
+            Ok(d) => d,
+            Err(_) => continue,
         }
+        .into_path();
+        let permit = match get_semaphore_permit(&path, &context).await {
+            Some(p) => p,
+            None => continue,
+        };
+
+        context
+            .spawn_counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let sender = context.sender.clone();
+        tokio::task::spawn_blocking(move || checksum_task(path, sender, permit));
     }
 }
 
