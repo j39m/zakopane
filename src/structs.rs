@@ -48,7 +48,11 @@ pub struct ChecksumCliOptions {
 }
 
 impl ChecksumCliOptions {
-    pub fn new(path: std::path::PathBuf, max_tasks: usize) -> Result<Self, ZakopaneError> {
+    pub fn new(
+        path: std::path::PathBuf,
+        max_tasks: usize,
+        big_file_bytes: Option<u64>,
+    ) -> Result<Self, ZakopaneError> {
         if max_tasks < 1 {
             return Err(ZakopaneError::CommandLine(format!(
                 "invalid task cap: ``{}''",
@@ -58,7 +62,7 @@ impl ChecksumCliOptions {
         Ok(Self {
             path,
             max_tasks,
-            big_file_bytes: None,
+            big_file_bytes,
         })
     }
 }

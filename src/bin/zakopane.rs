@@ -101,6 +101,14 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
                         .takes_value(true)
                         .help("maximum number of simultaneous checksum tasks")
                         .default_value("8"),
+                )
+                .arg(
+                    Arg::with_name("big-file-bytes")
+                        .long("single-threaded-checksum-byte-threshold")
+                        .takes_value(true)
+                        .help(
+                            "file size in bytes for which checksumming should be single-threaded",
+                        ),
                 ),
         )
         .get_matches();
@@ -109,9 +117,16 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
         return compare_data_from(&matches);
     }
     if let Some(ref matches) = matches.subcommand_matches("checksum") {
+        let big_file_bytes = if matches.is_present("big-file-bytes") {
+            Some(clap::value_t!(matches, "big-file-bytes", u64).unwrap_or_else(|e| e.exit()))
+        } else {
+            None
+        };
+
         let options = ChecksumCliOptions::new(
             std::path::PathBuf::from(matches.value_of("target-path").unwrap()),
             clap::value_t!(matches, "max-tasks", usize).unwrap_or_else(|e| e.exit()),
+            big_file_bytes,
         )?;
         return Ok(SubcommandData::Checksum(options));
     }
