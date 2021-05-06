@@ -67,21 +67,9 @@ fn get_file_details(path: &std::path::PathBuf) -> FileDetails {
         }
     };
 
-    if !metadata.file_type().is_file() {
-        return FileDetails {
-            is_file: false,
-            is_big: false,
-        };
-    }
-    if metadata.len() > BIG_FILE_BYTES.try_into().unwrap() {
-        return FileDetails {
-            is_file: true,
-            is_big: true,
-        };
-    }
     FileDetails {
-        is_file: true,
-        is_big: false,
+        is_file: metadata.file_type().is_file(),
+        is_big: metadata.len() > BIG_FILE_BYTES.try_into().unwrap(),
     }
 }
 
