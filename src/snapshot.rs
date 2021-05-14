@@ -4,7 +4,6 @@
 
 use std::collections::HashMap;
 use std::result::Result;
-use std::str::Lines;
 use std::string::String;
 
 use crate::structs::ZakopaneError;
@@ -61,36 +60,30 @@ impl Snapshot {
     // Borrows the string representation of a zakopane snapshot and
     // returns the corresponding Snapshot struct.
     pub fn new(snapshot: &str) -> Result<Snapshot, ZakopaneError> {
-        let mut lines: Lines = snapshot.lines();
-
         // A zakopane snapshot starts with three extra lines intended
         // for human readers. zakopane doesn't care about this header.
         let mut header_drain: usize = HEADER_LINES;
-        while header_drain > 0 {
-            match lines.next() {
-                Some(_) => (),
-                None => {
-                    return Err(ZakopaneError::Snapshot(
-                        "truncated zakopane snapshot".to_string(),
-                    ))
-                }
+
+        let mut contents: HashMap<String, String> = HashMap::new();
+        for line in snapshot.lines() {
+            if header_drain > 0 {
+                header_drain -= 1;
+                continue;
+            }
+
+            let (checksum, path) = parse_snapshot_line(line)?;
+            if let Some(old_checksum) = contents.insert(path.to_string(), checksum.to_string()) {
+                return Err(ZakopaneError::Snapshot(format!(
+                    "path collision: {} (was already {}, is now {})",
+                    path, old_checksum, checksum
+                )));
             };
-            header_drain -= 1;
         }
 
-        // Ingests the rest of the snapshot representation.
-        let mut contents: HashMap<String, String> = HashMap::new();
-        for line in lines {
-            let (checksum, path) = parse_snapshot_line(line)?;
-            match contents.insert(path.to_string(), checksum.to_string()) {
-                None => (),
-                Some(old_checksum) => {
-                    return Err(ZakopaneError::Snapshot(format!(
-                        "path collision: {} (was already {}, is now {})",
-                        path, old_checksum, checksum
-                    )))
-                }
-            };
+        if header_drain > 0 {
+            return Err(ZakopaneError::Snapshot(String::from(
+                "truncated zakopane snapshot",
+            )));
         }
         Ok(Snapshot { contents: contents })
     }
