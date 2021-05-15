@@ -235,16 +235,17 @@ fn pretty_format_checksums(path: std::path::PathBuf, checksums: Vec<ChecksumWith
     buffer.join("\n")
 }
 
-async fn checksum_impl(options: ChecksumCliOptions) -> String {
-    let path = options.path.clone();
+async fn checksum_impl(options: ChecksumCliOptions) -> Vec<ChecksumWithPath> {
     let (dispatcher_data, join_handle) = spawn_collector(options).await;
     spawn_checksum_tasks(dispatcher_data).await;
     let mut checksums: Vec<ChecksumWithPath> = join_handle.await.unwrap();
     checksums.sort_by(|a, b| a.path.cmp(&b.path));
-    pretty_format_checksums(path, checksums)
+    checksums
 }
 
 pub fn checksum(options: ChecksumCliOptions) -> String {
+    let path = options.path.clone();
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(checksum_impl(options))
+    let checksums = runtime.block_on(checksum_impl(options));
+    pretty_format_checksums(path, checksums)
 }
