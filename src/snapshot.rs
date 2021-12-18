@@ -15,8 +15,8 @@ const HEADER_LINES: usize = 3;
 const CHECKSUM_CHARS: usize = 64;
 
 // Defines a valid zakopane snapshot header.
-const SNAPSHOT_HEADER_FOR_TESTING: &'static str = r#"simple-zakopane.sh: 2019-07-27-090032
-simple-zakopane.sh: /home/kalvin
+const SNAPSHOT_HEADER_FOR_TESTING: &'static str = r#"zakopane: <some datestamp>
+zakopane: /home/kalvin
 # this line is typically empty but must be present
 "#;
 
@@ -118,8 +118,8 @@ mod tests {
         let snapshot = Snapshot::new(SNAPSHOT_HEADER_FOR_TESTING).unwrap();
         assert_eq!(snapshot.contents.len(), 0);
 
-        let snapshot_without_proper_header = r#"simple-zakopane.sh: 2019-07-27-090032
-simple-zakopane.sh: /home/kalvin
+        let snapshot_without_proper_header = r#"zakopane: 2019-07-27-090032
+zakopane: /home/kalvin
 "#;
         assert_snapshot_error(
             Snapshot::new(snapshot_without_proper_header).unwrap_err(),
