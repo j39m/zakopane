@@ -39,6 +39,7 @@ pub struct CompareCliOptions<'a> {
 #[derive(Debug)]
 pub struct ChecksumCliOptions {
     pub path: std::path::PathBuf,
+    pub start_time: chrono::DateTime<chrono::offset::Local>,
     pub max_tasks: usize,
 
     // User-defined value for what constitutes a "big file" for which
@@ -61,6 +62,7 @@ impl ChecksumCliOptions {
         }
         Ok(Self {
             path,
+            start_time: chrono::offset::Local::now(),
             max_tasks,
             big_file_bytes,
         })

@@ -51,7 +51,7 @@ fn compare_data_from(matches: &ArgMatches) -> Result<SubcommandData, ZakopaneErr
 // error.
 fn initialize() -> Result<SubcommandData, ZakopaneError> {
     let matches = App::new("zakopane")
-        .version("0.2.0")
+        .version("0.3.1")
         .author("j39m")
         .about("checksums directories")
         .subcommand(
@@ -163,13 +163,13 @@ fn do_checksum(options: ChecksumCliOptions) {
         eprintln!("``{}'' is not a dir", options.path.display());
         return;
     }
-    let start_time: chrono::DateTime<chrono::offset::Local> = chrono::offset::Local::now();
-    println!("checksum ``{}'' at {}", options.path.display(), start_time);
-
-    let header = generate_snapshot_header(&options.path, &start_time);
-    let checksums = libzakopane::checksum(options);
-    let output_basename = format!("{}.txt", start_time.format("%Y-%m-%d-%H%M"));
+    println!("checksum ``{}'' at {}", options.path.display(), options.start_time);
+    let output_basename = format!("{}.txt", options.start_time.format("%Y-%m-%d-%H%M"));
     let mut output_file = std::fs::File::create(&output_basename).unwrap();
+
+    let header = generate_snapshot_header(&options.path, &options.start_time);
+    let start_time = options.start_time;
+    let checksums = libzakopane::checksum(options);
 
     output_file.write_all(header.as_ref()).unwrap();
     output_file.write_all(checksums.as_ref()).unwrap();
