@@ -1,5 +1,7 @@
 # This firejail profile is distributed with zakopane.
 
+quiet
+
 include zakopane.local
 
 include disable-exec.inc
