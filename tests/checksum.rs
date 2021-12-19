@@ -7,7 +7,7 @@ fn options_for_testing(path: &str) -> libzakopane::structs::ChecksumCliOptions {
     result.push("tests");
     result.push("checksum-test-data");
     result.push(path);
-    libzakopane::structs::ChecksumCliOptions::new(result, 8, None).unwrap()
+    libzakopane::structs::ChecksumCliOptions::new(result, None, 8, None).unwrap()
 }
 
 #[test]

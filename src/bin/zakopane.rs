@@ -96,6 +96,12 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
                         .required(true),
                 )
                 .arg(
+                    Arg::with_name("output-file")
+                        .short("o")
+                        .takes_value(true)
+                        .help("checksum output file"),
+                )
+                .arg(
                     Arg::with_name("max-tasks")
                         .short("j")
                         .takes_value(true)
@@ -117,6 +123,14 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
         return compare_data_from(&matches);
     }
     if let Some(ref matches) = matches.subcommand_matches("checksum") {
+        let output_path = if matches.is_present("output-file") {
+            Some(std::path::PathBuf::from(
+                clap::value_t!(matches, "output-file", String).unwrap_or_else(|e| e.exit()),
+            ))
+        } else {
+            None
+        };
+
         let big_file_bytes = if matches.is_present("big-file-bytes") {
             Some(clap::value_t!(matches, "big-file-bytes", u64).unwrap_or_else(|e| e.exit()))
         } else {
@@ -125,6 +139,7 @@ fn initialize() -> Result<SubcommandData, ZakopaneError> {
 
         let options = ChecksumCliOptions::new(
             std::path::PathBuf::from(matches.value_of("target-path").unwrap()),
+            output_path,
             clap::value_t!(matches, "max-tasks", usize).unwrap_or_else(|e| e.exit()),
             big_file_bytes,
         )?;
@@ -163,17 +178,21 @@ fn do_checksum(options: ChecksumCliOptions) {
         eprintln!("``{}'' is not a dir", options.path.display());
         return;
     }
-    println!("checksum ``{}'' at {}", options.path.display(), options.start_time);
-    let output_basename = format!("{}.txt", options.start_time.format("%Y-%m-%d-%H%M"));
-    let mut output_file = std::fs::File::create(&output_basename).unwrap();
+    println!(
+        "checksum ``{}'' at {}",
+        options.path.display(),
+        options.start_time
+    );
+    let mut output = std::fs::File::create(&options.output_path).unwrap();
 
     let header = generate_snapshot_header(&options.path, &options.start_time);
     let start_time = options.start_time;
+    let output_path = options.output_path.clone();
     let checksums = libzakopane::checksum(options);
 
-    output_file.write_all(header.as_ref()).unwrap();
-    output_file.write_all(checksums.as_ref()).unwrap();
-    println!("wrote ``{}''", output_basename);
+    output.write_all(header.as_ref()).unwrap();
+    output.write_all(checksums.as_ref()).unwrap();
+    println!("wrote ``{}''", output_path.display());
 
     let end_time: chrono::DateTime<chrono::offset::Local> = chrono::offset::Local::now();
     println!(

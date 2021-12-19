@@ -39,6 +39,7 @@ pub struct CompareCliOptions<'a> {
 #[derive(Debug)]
 pub struct ChecksumCliOptions {
     pub path: std::path::PathBuf,
+    pub output_path: std::path::PathBuf,
     pub start_time: chrono::DateTime<chrono::offset::Local>,
     pub max_tasks: usize,
 
@@ -51,6 +52,7 @@ pub struct ChecksumCliOptions {
 impl ChecksumCliOptions {
     pub fn new(
         path: std::path::PathBuf,
+        optional_output_path: Option<std::path::PathBuf>,
         max_tasks: usize,
         big_file_bytes: Option<u64>,
     ) -> Result<Self, ZakopaneError> {
@@ -60,9 +62,17 @@ impl ChecksumCliOptions {
                 max_tasks
             )));
         }
+
+        let start_time = chrono::offset::Local::now();
+        let output_path = match optional_output_path {
+            Some(path) => path,
+            None => std::path::PathBuf::from(start_time.format("%Y-%m-%d-%H%M.txt").to_string()),
+        };
+
         Ok(Self {
             path,
-            start_time: chrono::offset::Local::now(),
+            output_path,
+            start_time,
             max_tasks,
             big_file_bytes,
         })
