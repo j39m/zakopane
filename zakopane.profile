@@ -1,11 +1,12 @@
 # This firejail profile is distributed with zakopane.
 
 quiet
+shell none
 
 include zakopane.local
 
 include disable-exec.inc
-#include disable-shell.inc
+include disable-shell.inc
 include disable-write-mnt.inc
 
 dbus-system none
