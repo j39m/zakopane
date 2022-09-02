@@ -6,8 +6,6 @@ use libzakopane::structs::ChecksumCliOptions;
 use libzakopane::structs::CompareCliOptions;
 use libzakopane::structs::ZakopaneError;
 
-use clap::{value_t, App, Arg, ArgMatches};
-
 const DEFAULT_POLICY_ARG_NAME: &'static str = "default-policy";
 const CONFIG_FILE_ARG_NAME: &'static str = "config";
 const OLD_SNAPSHOT_PATH_ARG_NAME: &'static str = "old-snapshot-path";
@@ -28,7 +26,7 @@ enum SubcommandData {
 
 // Reads parsed command-line arguments and returns the appropriate
 // operational data. Can abort the program on error.
-fn compare_data_from(matches: &ArgMatches) -> Result<SubcommandData, ZakopaneError> {
+fn compare_data_from(matches: &clap::ArgMatches) -> Result<SubcommandData, ZakopaneError> {
     // The two snapshot paths are required, so these are safe to unwrap.
     let old_snapshot_path = matches.value_of(OLD_SNAPSHOT_PATH_ARG_NAME).unwrap();
     let new_snapshot_path = matches.value_of(NEW_SNAPSHOT_PATH_ARG_NAME).unwrap();
@@ -50,66 +48,67 @@ fn compare_data_from(matches: &ArgMatches) -> Result<SubcommandData, ZakopaneErr
 // Begins parsing command-line arguments. Can abort the program on
 // error.
 fn initialize() -> Result<SubcommandData, ZakopaneError> {
-    let matches = App::new("zakopane")
-        .version("0.3.1")
+    let matches = clap::App::new("zakopane")
+        .version("0.3.2")
         .author("j39m")
         .about("checksums directories")
+        .setting(clap::AppSettings::SubcommandRequired)
         .subcommand(
-            App::new("compare")
+            clap::App::new("compare")
                 .about("compares two zakopane snapshots")
                 .arg(
-                    Arg::with_name(CONFIG_FILE_ARG_NAME)
-                        .short("c")
+                    clap::Arg::new(CONFIG_FILE_ARG_NAME)
+                        .short('c')
                         .long("config")
                         .value_name("FILE")
                         .help("specifies a zakopane config")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name(DEFAULT_POLICY_ARG_NAME)
-                        .short("d")
+                    clap::Arg::with_name(DEFAULT_POLICY_ARG_NAME)
+                        .short('d')
                         .long("default-policy")
                         .value_name("POLICY_TOKENS")
                         .help("specifies an explicit default policy")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name(OLD_SNAPSHOT_PATH_ARG_NAME)
+                    clap::Arg::with_name(OLD_SNAPSHOT_PATH_ARG_NAME)
                         .help("path to older snapshot")
                         .index(1)
                         .required(true),
                 )
                 .arg(
-                    Arg::with_name(NEW_SNAPSHOT_PATH_ARG_NAME)
+                    clap::Arg::with_name(NEW_SNAPSHOT_PATH_ARG_NAME)
                         .help("path to newer snapshot")
                         .index(2)
                         .required(true),
                 ),
         )
         .subcommand(
-            App::new("checksum")
+            clap::App::new("checksum")
                 .about("produces checksums for a directory")
                 .arg(
-                    Arg::with_name("target-path")
+                    clap::Arg::new("target-path")
                         .help("directory to checksum")
                         .index(1)
                         .required(true),
                 )
                 .arg(
-                    Arg::with_name("output-file")
-                        .short("o")
+                    clap::Arg::new("output-file")
+                        .short('o')
                         .takes_value(true)
                         .help("checksum output file"),
                 )
                 .arg(
-                    Arg::with_name("max-tasks")
-                        .short("j")
+                    clap::Arg::new("max-tasks")
+                        .short('j')
                         .takes_value(true)
                         .help("maximum number of simultaneous checksum tasks")
                         .default_value("8"),
                 )
                 .arg(
-                    Arg::with_name("big-file-bytes")
+                    clap::Arg::new("big-file-bytes")
                         .long("single-threaded-checksum-byte-threshold")
                         .takes_value(true)
                         .help(
