@@ -1,7 +1,6 @@
 # This firejail profile is distributed with zakopane.
 
 quiet
-shell none
 
 include zakopane.local
 
