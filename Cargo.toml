@@ -10,7 +10,7 @@ path = "src/libzakopane.rs"
 
 [[bin]]
 name = "zakopane"
-path = "src/bin/zakopane.rs"
+path = "src/main.rs"
 
 [dependencies]
 yaml-rust = "0"
