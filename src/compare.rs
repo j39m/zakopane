@@ -19,12 +19,12 @@ fn check_modifications_and_deletions(
         match newer_snapshot.get(path) {
             Some(newer_checksum) => {
                 if (policy & config::POLICY_NOMODIFY) != 0 && checksum != newer_checksum {
-                    violations.add(path, violations::MODIFIED).unwrap();
+                    violations.modified(path);
                 }
             }
             None => {
                 if (policy & config::POLICY_NODELETE) != 0 {
-                    violations.add(path, violations::DELETED).unwrap();
+                    violations.deleted(path);
                 }
             }
         }
@@ -49,7 +49,7 @@ fn check_additions(
             Some(_older_checksum) => (),
             None => {
                 if (policy & config::POLICY_NOADD) != 0 {
-                    violations.add(path, violations::ADDED).unwrap();
+                    violations.added(path);
                 }
             }
         }
