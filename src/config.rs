@@ -8,8 +8,62 @@ use yaml_rust::{Yaml, YamlLoader};
 use crate::structs::CompareCliOptions;
 use crate::structs::ZakopaneError;
 
-// Represents a single zakopane config policy.
-type Policy = i32;
+type PolicyBitfield = u8;
+
+#[derive(Debug)]
+pub struct Policy {
+    bitfield: PolicyBitfield,
+}
+
+#[repr(u8)]
+enum PolicyAsU8 {
+    Ignore = 0b000,
+    NoAdd = 0b001,
+    NoDelete = 0b010,
+    NoModify = 0b100,
+    Immutable = 0b111,
+}
+
+fn policy_int_from(token: &str) -> Result<PolicyBitfield, ZakopaneError> {
+    match token {
+        "ignore" => Ok(PolicyAsU8::Ignore as u8),
+        "noadd" => Ok(PolicyAsU8::NoAdd as u8),
+        "nodelete" => Ok(PolicyAsU8::NoDelete as u8),
+        "nomodify" => Ok(PolicyAsU8::NoModify as u8),
+        "immutable" => Ok(PolicyAsU8::Immutable as u8),
+        _ => Err(ZakopaneError::Config(format!("bad token: ``{}''", token))),
+    }
+}
+
+impl TryFrom<&str> for Policy {
+    type Error = crate::structs::ZakopaneError;
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        let policy_u8s: Vec<PolicyBitfield> = input
+            .split(",")
+            .map(|tok| policy_int_from(tok))
+            .collect::<Result<Vec<PolicyBitfield>, ZakopaneError>>(
+        )?;
+        let folded = policy_u8s
+            .iter()
+            .fold(PolicyAsU8::Ignore as u8, |accum, elem| accum | elem);
+        Ok(Policy { bitfield: folded })
+    }
+}
+
+impl Policy {
+    pub fn is_ignore(&self) -> bool {
+        self.bitfield == PolicyAsU8::Ignore as u8
+    }
+    pub fn is_noadd(&self) -> bool {
+        (self.bitfield & PolicyAsU8::NoAdd as u8) != 0
+    }
+    pub fn is_nodelete(&self) -> bool {
+        (self.bitfield & PolicyAsU8::NoDelete as u8) != 0
+    }
+    pub fn is_nomodify(&self) -> bool {
+        (self.bitfield & PolicyAsU8::NoModify as u8) != 0
+    }
+}
 
 // Represents a sorted vector of zakopane config rules, each mapping a
 // path (prefix) to a policy. This type alias is provided for ease of
@@ -19,50 +73,10 @@ type Policies = Vec<(String, Policy)>;
 const DEFAULT_POLICY_KEY: &'static str = "default-policy";
 const POLICIES_KEY: &'static str = "policies";
 
-// Enumerates the string representations of known policies.
-const POLICY_REPR_IGNORE: &'static str = "ignore";
-const POLICY_REPR_NOADD: &'static str = "noadd";
-const POLICY_REPR_NODELETE: &'static str = "nodelete";
-const POLICY_REPR_NOMODIFY: &'static str = "nomodify";
-const POLICY_REPR_IMMUTABLE: &'static str = "immutable";
-
-// Represents known policies as an integral type.
-pub const POLICY_IGNORE: Policy = 0;
-pub const POLICY_NOADD: Policy = 1 << 0;
-pub const POLICY_NODELETE: Policy = 1 << 1;
-pub const POLICY_NOMODIFY: Policy = 1 << 2;
-pub const POLICY_IMMUTABLE: Policy = POLICY_NOADD | POLICY_NODELETE | POLICY_NOMODIFY;
-
 // Represents a zakopane config. Please consult the documentation.
 pub struct Config {
     default_policy: Policy,
     policies: Policies,
-}
-
-// Borrows the string representation of one policy `token` and returns
-// the equivalent integral representation.
-fn policy_token_as_int(token: &str) -> Result<Policy, ZakopaneError> {
-    match token {
-        POLICY_REPR_IGNORE => Ok(POLICY_IGNORE),
-        POLICY_REPR_NOADD => Ok(POLICY_NOADD),
-        POLICY_REPR_NODELETE => Ok(POLICY_NODELETE),
-        POLICY_REPR_NOMODIFY => Ok(POLICY_NOMODIFY),
-        POLICY_REPR_IMMUTABLE => Ok(POLICY_IMMUTABLE),
-        _ => Err(ZakopaneError::Config(format!("bad token: ``{}''", token))),
-    }
-}
-
-// Borrows the string representation of a combined `policy` and returns
-// the equivalent integral representation. This function expects
-// `policy` to comprise one or more policy tokens separated by commas.
-fn policy_tokens_as_int(policy: &str) -> Result<Policy, ZakopaneError> {
-    let policy_ints: Vec<Policy> = policy
-        .split(",")
-        .map(|tok| policy_token_as_int(tok))
-        .collect::<Result<Vec<Policy>, ZakopaneError>>()?;
-    Ok(policy_ints
-        .iter()
-        .fold(POLICY_IGNORE, |accum, elem| accum | elem))
 }
 
 // Borrows yaml representations of one line of zakopane policy and
@@ -77,7 +91,7 @@ fn policy_tuple_from_yaml(
         None => return Err(ZakopaneError::Config("malformed path?".to_string())),
     };
     let policy: Policy = match policy_tokens.as_str() {
-        Some(string) => policy_tokens_as_int(string)?,
+        Some(string) => Policy::try_from(string)?,
         None => return Err(ZakopaneError::Config("malformed policy?".to_string())),
     };
     Ok((path, policy))
@@ -117,7 +131,7 @@ fn default_policy_from_yaml(doc: &Yaml) -> Result<Option<Policy>, ZakopaneError>
     }
     let default_policy: Policy = match default_policy_yaml.as_str() {
         None => return Err(ZakopaneError::Config(DEFAULT_POLICY_KEY.to_string())),
-        Some(token) => policy_tokens_as_int(&token),
+        Some(token) => Policy::try_from(token),
     }?;
     Ok(Some(default_policy))
 }
@@ -141,14 +155,16 @@ fn get_default_policy(
     yaml_config: &Option<Yaml>,
 ) -> Result<Policy, ZakopaneError> {
     if let Some(default_from_cli) = options.default_policy {
-        return policy_tokens_as_int(default_from_cli);
+        return Policy::try_from(default_from_cli);
     } else if let Some(yaml) = yaml_config {
         let optional_default_policy = default_policy_from_yaml(&yaml)?;
         if let Some(default_policy) = optional_default_policy {
             return Ok(default_policy);
         }
     }
-    Ok(POLICY_IMMUTABLE)
+    Ok(Policy {
+        bitfield: PolicyAsU8::Immutable as u8,
+    })
 }
 
 // Returns any additional policies for this invocation.
@@ -186,26 +202,19 @@ impl Config {
         1 + self.policies.len()
     }
 
-    // Borrows a `path` and returns the best-matched policy that
-    // applies. This function returns an owned tuple of the
-    // (closest-matched path expression, integral policy).
-    //
-    // This function represents the default-policy fallback by
-    // returning the tuple consisting of an empty &str and the
-    // default policy.
-    pub fn match_policy(&self, path: &str) -> (&str, Policy) {
+    pub fn match_policy(&self, path: &str) -> &Policy {
         let mut best_match_path: &str = "";
-        let mut best_match_policy: Policy = 0;
+        let mut best_match_policy: Option<&Policy> = None;
         for (prefix, policy) in self.policies.iter() {
             if path.starts_with(prefix) && prefix.len() > best_match_path.len() {
                 best_match_path = prefix;
-                best_match_policy = *policy;
+                best_match_policy = Some(policy);
             }
         }
-        if best_match_path.len() == 0 {
-            return ("", self.default_policy);
+        if best_match_policy.is_some() {
+            return best_match_policy.unwrap();
         }
-        return (best_match_path, best_match_policy);
+        &self.default_policy
     }
 }
 
@@ -240,28 +249,29 @@ mod tests {
 
     #[test]
     fn policy_token_bare() {
-        let policy: Policy = policy_tokens_as_int(&"noadd").unwrap();
-        assert_eq!(policy, POLICY_NOADD);
+        let policy = Policy::try_from("noadd").unwrap();
+        assert!(policy.is_noadd());
 
-        let policy: Policy = policy_tokens_as_int(&"nodelete").unwrap();
-        assert_eq!(policy, POLICY_NODELETE);
+        let policy = Policy::try_from("nodelete").unwrap();
+        assert!(policy.is_nodelete());
 
-        let policy: Policy = policy_tokens_as_int(&"nomodify").unwrap();
-        assert_eq!(policy, POLICY_NOMODIFY);
+        let policy = Policy::try_from("nomodify").unwrap();
+        assert!(policy.is_nomodify());
     }
 
     #[test]
     fn policy_tokens_can_combo() {
-        let policy: Policy = policy_tokens_as_int(&"noadd,nodelete").unwrap();
-        assert_eq!(policy, POLICY_NOADD | POLICY_NODELETE);
+        let policy = Policy::try_from("noadd,nodelete").unwrap();
+        assert!(policy.is_noadd());
+        assert!(policy.is_nodelete());
     }
 
     #[test]
     fn policy_tokens_can_repeat() {
-        let policy: Policy =
-            policy_tokens_as_int(&"noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd")
-                .unwrap();
-        assert_eq!(policy, POLICY_NOADD | POLICY_NODELETE);
+        let policy =
+            Policy::try_from("noadd,noadd,noadd,noadd,nodelete,nodelete,nodelete,noadd").unwrap();
+        assert!(policy.is_noadd());
+        assert!(policy.is_nodelete());
     }
 
     #[test]
@@ -279,7 +289,10 @@ mod tests {
         // considered valid.
         let options = test_support::options(Some("/dev/null"), None);
         let config = Config::new(&options).unwrap();
-        assert_eq!(config.default_policy, POLICY_IMMUTABLE);
+
+        assert!(config.default_policy.is_noadd());
+        assert!(config.default_policy.is_nodelete());
+        assert!(config.default_policy.is_nomodify());
     }
 
     #[test]
@@ -289,7 +302,10 @@ mod tests {
         let options = test_support::options(Some(config_path.to_str().unwrap()), None);
         let config = Config::new(&options).unwrap();
         assert_eq!(config.rules(), 5);
-        assert_eq!(config.default_policy, POLICY_IMMUTABLE);
+
+        assert!(config.default_policy.is_noadd());
+        assert!(config.default_policy.is_nodelete());
+        assert!(config.default_policy.is_nomodify());
     }
 
     #[test]
@@ -299,7 +315,10 @@ mod tests {
         let empty_options = test_support::options(None, None);
         let unopinionated_config = Config::new(&empty_options).unwrap();
         assert!(unopinionated_config.rules() == 1);
-        assert!(unopinionated_config.match_policy("") == ("", POLICY_IMMUTABLE));
+        let policy = unopinionated_config.match_policy("");
+        assert!(policy.is_noadd());
+        assert!(policy.is_nodelete());
+        assert!(policy.is_nomodify());
 
         // Tests that a default policy presented on the command-line
         // takes precedence over a written default policy.
@@ -311,11 +330,11 @@ mod tests {
             test_support::options(Some(config_path.to_str().unwrap()), Some("noadd"));
         let noadd_is_default = Config::new(&default_policy_on_cli_options).unwrap();
         assert!(noadd_is_default.rules() == 2);
-        assert!(noadd_is_default.match_policy("") == ("", POLICY_NOADD));
-        assert!(
-            noadd_is_default.match_policy("hello/there/general-kenobi")
-                == ("hello/there", POLICY_IMMUTABLE)
-        );
+        assert!(noadd_is_default.match_policy("").is_noadd());
+        let kenobi = noadd_is_default.match_policy("hello/there/general-kenobi");
+        assert!(kenobi.is_noadd());
+        assert!(kenobi.is_nodelete());
+        assert!(kenobi.is_nomodify());
 
         // Tests that a written default policy emerges absent explicit
         // specification on the command-line.
@@ -323,11 +342,11 @@ mod tests {
             test_support::options(Some(config_path.to_str().unwrap()), None);
         let ignore_is_default = Config::new(&default_policy_in_yaml_options).unwrap();
         assert!(ignore_is_default.rules() == 2);
-        assert!(ignore_is_default.match_policy("") == ("", POLICY_IGNORE));
-        assert!(
-            noadd_is_default.match_policy("hello/there/general-kenobi")
-                == ("hello/there", POLICY_IMMUTABLE)
-        );
+        assert!(ignore_is_default.match_policy("").is_ignore());
+        let kenobi = noadd_is_default.match_policy("hello/there/general-kenobi");
+        assert!(kenobi.is_noadd());
+        assert!(kenobi.is_nodelete());
+        assert!(kenobi.is_nomodify());
     }
 
     #[test]
@@ -336,7 +355,7 @@ mod tests {
         let options = test_support::options(Some(config_path.to_str().unwrap()), None);
         let config = Config::new(&options).unwrap();
         assert!(config.rules() == 1);
-        assert!(config.match_policy("") == ("", POLICY_NODELETE));
+        assert!(config.match_policy("").is_nodelete());
     }
 
     #[test]
@@ -357,10 +376,12 @@ mod tests {
 
         // Any path prefix we throw at match_policy() shall come up
         // as the default policy.
-        let (_path, policy) = config.match_policy("./Documents/hello/there.txt");
-        assert_eq!(policy, POLICY_NODELETE);
-        let (_path, policy) = config.match_policy("./Music/general/kenobi.txt");
-        assert_eq!(policy, POLICY_NODELETE);
+        assert!(config
+            .match_policy("./Documents/hello/there.txt")
+            .is_nodelete());
+        assert!(config
+            .match_policy("./Music/general/kenobi.txt")
+            .is_nodelete());
     }
 
     #[test]
@@ -373,26 +394,27 @@ mod tests {
 
         // Falls back on the default-policy absent any specific policy
         // defined for this file.
-        let (_path, policy) = config.match_policy("./Documents/catch-me-senpai.txt");
-        assert_eq!(policy, POLICY_IMMUTABLE);
+        let policy = config.match_policy("./Documents/catch-me-senpai.txt");
+        assert!(policy.is_noadd());
+        assert!(policy.is_nodelete());
+        assert!(policy.is_nomodify());
         // Matches only ``./Pictures.''
-        let (_path, policy) = config.match_policy("./Pictures/2016/yano.jpg");
-        assert_eq!(policy, POLICY_NOADD);
+        assert!(config.match_policy("./Pictures/2016/yano.jpg").is_noadd());
         // As above and does _not_ match ``./Pictures/2019/third-party/.''
-        let (_path, policy) = config.match_policy("./Pictures/2019/first-party.jpg");
-        assert_eq!(policy, POLICY_NOADD);
+        assert!(config
+            .match_policy("./Pictures/2019/first-party.jpg")
+            .is_noadd());
         // Does match ``./Pictures/2019/third-party/.''
-        let (_path, policy) = config.match_policy("./Pictures/2019/third-party/yano.jpg");
-        assert_eq!(policy, POLICY_NODELETE);
+        assert!(config
+            .match_policy("./Pictures/2019/third-party/yano.jpg")
+            .is_nodelete());
 
         // Path prefix matching is done strictly and exactly;
         // ``food.md'' doesn't match ``food/,'' so there's no risk of
         // zakopane confusing cohabiting entities with similar basenames.
-        let (path, policy) = config.match_policy("./Pictures/2020/food.md");
-        assert_eq!(policy, POLICY_NOMODIFY);
-        assert_eq!(path, "./Pictures/2020/");
-        let (path, policy) = config.match_policy("./Pictures/2020/food/tacos.jpg");
-        assert_eq!(policy, POLICY_NODELETE | POLICY_NOMODIFY);
-        assert_eq!(path, "./Pictures/2020/food/");
+        assert!(config.match_policy("./Pictures/2020/food.md").is_nomodify());
+        let policy = config.match_policy("./Pictures/2020/food/tacos.jpg");
+        assert!(policy.is_nodelete());
+        assert!(policy.is_nomodify());
     }
 }

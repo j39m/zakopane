@@ -11,19 +11,19 @@ fn check_modifications_and_deletions(
     violations: &mut violations::Violations,
 ) {
     for (path, checksum) in older_snapshot.iter() {
-        let (_rule_repr, policy) = config.match_policy(path);
-        if policy == config::POLICY_IGNORE {
+        let policy = config.match_policy(path);
+        if policy.is_ignore() {
             continue;
         }
 
         match newer_snapshot.get(path) {
             Some(newer_checksum) => {
-                if (policy & config::POLICY_NOMODIFY) != 0 && checksum != newer_checksum {
+                if policy.is_nomodify() && checksum != newer_checksum {
                     violations.modified(path);
                 }
             }
             None => {
-                if (policy & config::POLICY_NODELETE) != 0 {
+                if policy.is_nodelete() {
                     violations.deleted(path);
                 }
             }
@@ -40,15 +40,15 @@ fn check_additions(
     violations: &mut violations::Violations,
 ) {
     for (path, _checksum) in newer_snapshot.iter() {
-        let (_rule_repr, policy) = config.match_policy(path);
-        if policy == config::POLICY_IGNORE {
+        let policy = config.match_policy(path);
+        if policy.is_ignore() {
             continue;
         }
 
         match older_snapshot.get(path) {
             Some(_older_checksum) => (),
             None => {
-                if (policy & config::POLICY_NOADD) != 0 {
+                if policy.is_noadd() {
                     violations.added(path);
                 }
             }
