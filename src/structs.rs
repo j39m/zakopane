@@ -11,8 +11,6 @@ pub enum ZakopaneError {
     Snapshot(String),
     // Describes invalid command-line invocations.
     CommandLine(String),
-    // Describes unknown or unspecified errors.
-    Unknown(String),
 }
 
 impl std::fmt::Display for ZakopaneError {
@@ -21,8 +19,7 @@ impl std::fmt::Display for ZakopaneError {
             ZakopaneError::Io(io_error) => write!(f, "{}", io_error.to_string()),
             ZakopaneError::Config(message)
             | ZakopaneError::Snapshot(message)
-            | ZakopaneError::CommandLine(message)
-            | ZakopaneError::Unknown(message) => write!(f, "{}", message),
+            | ZakopaneError::CommandLine(message) => write!(f, "{}", message),
         }
     }
 }
