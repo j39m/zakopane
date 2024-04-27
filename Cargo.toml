@@ -17,6 +17,7 @@ chrono = "0.4"
 clap = { version = "4", features = ["cargo", "derive"] }
 crypto-hash = "0.3"
 indoc = "1"
+thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 walkdir = "2"
 yaml-rust = "0"

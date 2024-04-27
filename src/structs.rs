@@ -1,24 +1,13 @@
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ZakopaneError {
-    // Propagates I/O errors (e.g. from reading actual files).
-    Io(std::io::Error),
-    // Describes problems with zakopane configuration files.
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error("{0}")]
     Config(String),
-    // Describes problems with zakopane snapshot files.
+    #[error("{0}")]
     Snapshot(String),
-    // Describes invalid command-line invocations.
+    #[error("{0}")]
     CommandLine(String),
-}
-
-impl std::fmt::Display for ZakopaneError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ZakopaneError::Io(io_error) => write!(f, "{}", io_error.to_string()),
-            ZakopaneError::Config(message)
-            | ZakopaneError::Snapshot(message)
-            | ZakopaneError::CommandLine(message) => write!(f, "{}", message),
-        }
-    }
 }
 
 // TODO(j39m): Figure out if this best goes here or in `main.rs`.
