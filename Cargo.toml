@@ -13,10 +13,10 @@ name = "zakopane"
 path = "src/main.rs"
 
 [dependencies]
-yaml-rust = "0"
-indoc = "1"
-clap = { version = "4", features = ["cargo", "derive"] }
-tokio = { version = "1", features = ["full"] }
-crypto-hash = "0.3"
-walkdir = "2"
 chrono = "0.4"
+clap = { version = "4", features = ["cargo", "derive"] }
+crypto-hash = "0.3"
+indoc = "1"
+tokio = { version = "1", features = ["full"] }
+walkdir = "2"
+yaml-rust = "0"
