@@ -97,6 +97,7 @@ impl Snapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use indoc::indoc;
 
     // Consumes a ZakopaneError and borrows a string slice. Asserts that
     // the error is of the Snapshot variant and starts with the string
@@ -113,9 +114,12 @@ mod tests {
         let snapshot = Snapshot::new(SNAPSHOT_HEADER_FOR_TESTING).unwrap();
         assert_eq!(snapshot.contents.len(), 0);
 
-        let snapshot_without_proper_header = r#"zakopane: 2019-07-27-090032
-zakopane: /home/kalvin
-"#;
+        let snapshot_without_proper_header = indoc!(
+            r#"
+        zakopane: 2019-07-27-090032
+        zakopane: /home/kalvin
+        "#
+        );
         assert_snapshot_error(
             Snapshot::new(snapshot_without_proper_header).unwrap_err(),
             "truncated",
@@ -162,8 +166,12 @@ zakopane: /home/kalvin
 
     #[test]
     fn snapshot_paths_may_not_repeat() {
-        let checksums = r#"4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ./hello/there.txt
-0000000000000000000000000000000000000000000000000000000000000000  ./hello/there.txt"#;
+        let checksums = indoc!(
+            r#"
+        4e8401b759a877c0d215ba95bb75bd7d08318cbdc395b3fae9763337ee3614a5  ./hello/there.txt
+        0000000000000000000000000000000000000000000000000000000000000000  ./hello/there.txt
+        "#
+        );
         // The point of this test is not to catch identical checksums
         // (which occur naturally if you ever accidentally duplicate
         // files), but to catch repeated paths (which should not be
@@ -178,29 +186,30 @@ zakopane: /home/kalvin
     fn snapshot_get() {
         // Creates a snapshot describing two files, each with contrived
         // but valid-looking checksums.
-        let snapshot = Snapshot::new(&snapshot_string_for_testing(
-            r#"0000000000000000000000000000000000000000000000000000000000000001  ./hello/there.txt
-0000000000000000000000000000000000000000000000000000000000000002  ./general/kenobi.txt
-00000000000000000000000000000000000000000000000000000000000000ff  ./you/are.txt
-00000000000000000000000000000000000000000000000000000000000001ff  ./a/bold-one.txt
-"#,
-        ))
+        let snapshot = Snapshot::new(&snapshot_string_for_testing(indoc!(
+            r#"
+            0000000000000000000000000000000000000000000000000000000000000001  ./hello/there.txt
+            0000000000000000000000000000000000000000000000000000000000000002  ./general/kenobi.txt
+            00000000000000000000000000000000000000000000000000000000000000ff  ./you/are.txt
+            00000000000000000000000000000000000000000000000000000000000001ff  ./a/bold-one.txt
+            "#
+        )))
         .unwrap();
         assert_eq!(
-            snapshot.get("./hello/there.txt").unwrap(),
-            "0000000000000000000000000000000000000000000000000000000000000001"
+            *snapshot.get("./hello/there.txt").unwrap(),
+            format!("{:064x}", 0x1)
         );
         assert_eq!(
-            snapshot.get("./general/kenobi.txt").unwrap(),
-            "0000000000000000000000000000000000000000000000000000000000000002"
+            *snapshot.get("./general/kenobi.txt").unwrap(),
+            format!("{:064x}", 0x2)
         );
         assert_eq!(
-            snapshot.get("./you/are.txt").unwrap(),
-            "00000000000000000000000000000000000000000000000000000000000000ff"
+            *snapshot.get("./you/are.txt").unwrap(),
+            format!("{:064x}", 0xff)
         );
         assert_eq!(
-            snapshot.get("./a/bold-one.txt").unwrap(),
-            "00000000000000000000000000000000000000000000000000000000000001ff"
+            *snapshot.get("./a/bold-one.txt").unwrap(),
+            format!("{:064x}", 0x1ff)
         );
 
         assert!(snapshot.get("blah-blah-nonexistent-key").is_none());
