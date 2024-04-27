@@ -10,8 +10,7 @@ use libzakopane::snapshot::Snapshot;
 
 #[test]
 fn test_basic_default_immutability() {
-    let options = libzakopane::config::test_support::options(None, Some("immutable"));
-    let config: Config = Config::new(&options).unwrap();
+    let config: Config = Config::new(None).unwrap();
 
     // Verifies that empty snapshots never turn up violations.
     let empty_older = Snapshot::new(&snapshot_string_for_testing("")).unwrap();
@@ -101,9 +100,7 @@ fn test_basic_default_immutability() {
 fn test_overlapping_prefixes() {
     let config_path =
         libzakopane::config::test_support::data_path("config-with-several-more-policies");
-    let options =
-        libzakopane::config::test_support::options(Some(config_path.to_str().unwrap()), None);
-    let config = Config::new(&options).unwrap();
+    let config = Config::new(Some(config_path)).unwrap();
 
     let snapshot_older = Snapshot::new(&snapshot_string_for_testing(indoc!(
         r#"

@@ -25,15 +25,6 @@ impl std::fmt::Display for ZakopaneError {
 }
 
 #[derive(Debug)]
-// Snapshot files are ingested early on and not stored here.
-pub struct CompareCliOptions<'a> {
-    // A config file with policies is optional.
-    pub config_path: Option<&'a str>,
-    // A default policy on the command-line is optional.
-    pub default_policy: Option<&'a str>,
-}
-
-#[derive(Debug)]
 pub struct ChecksumCliOptions {
     pub path: std::path::PathBuf,
     pub output_path: std::path::PathBuf,

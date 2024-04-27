@@ -5,7 +5,6 @@ use std::clone::Clone;
 
 use yaml_rust::{Yaml, YamlLoader};
 
-use crate::structs::CompareCliOptions;
 use crate::structs::ZakopaneError;
 
 type PolicyBitfield = u8;
@@ -150,15 +149,9 @@ fn read_yaml(config_contents: &str) -> Result<Option<Yaml>, ZakopaneError> {
 }
 
 // Returns the default policy for this invocation.
-fn get_default_policy(
-    options: &CompareCliOptions,
-    yaml_config: &Option<Yaml>,
-) -> Result<Policy, ZakopaneError> {
-    if let Some(default_from_cli) = options.default_policy {
-        return Policy::try_from(default_from_cli);
-    } else if let Some(yaml) = yaml_config {
-        let optional_default_policy = default_policy_from_yaml(&yaml)?;
-        if let Some(default_policy) = optional_default_policy {
+fn get_default_policy(yaml_config: &Option<Yaml>) -> Result<Policy, ZakopaneError> {
+    if let Some(yaml) = yaml_config {
+        if let Some(default_policy) = default_policy_from_yaml(&yaml)? {
             return Ok(default_policy);
         }
     }
@@ -178,16 +171,16 @@ fn get_policies(yaml_config: &Option<Yaml>) -> Result<Policies, ZakopaneError> {
 impl Config {
     // Borrows the string representation of a zakopane config and
     // returns a corresponding Config.
-    pub fn new(options: &CompareCliOptions) -> Result<Config, ZakopaneError> {
-        let yaml_config: Option<Yaml> = match options.config_path {
+    pub fn new(config_path: Option<std::path::PathBuf>) -> Result<Config, ZakopaneError> {
+        let yaml_config: Option<Yaml> = match config_path {
             Some(path) => {
-                let config = crate::helpers::ingest_file(path)?;
+                let config = crate::helpers::ingest_file(&path)?;
                 read_yaml(&config)?
             }
             None => None,
         };
 
-        let default_policy = get_default_policy(&options, &yaml_config)?;
+        let default_policy = get_default_policy(&yaml_config)?;
         let policies = get_policies(&yaml_config)?;
 
         Ok(Config {
@@ -219,23 +212,9 @@ impl Config {
 }
 
 pub mod test_support {
-    use crate::structs::CompareCliOptions;
-    use std::path::PathBuf;
-
-    // Creates a CompareCliOptions instance for testing.
-    pub fn options<'a>(
-        config_path: Option<&'a str>,
-        default_policy: Option<&'a str>,
-    ) -> CompareCliOptions<'a> {
-        CompareCliOptions {
-            config_path: config_path,
-            default_policy: default_policy,
-        }
-    }
-
     // Returns |path| with the cargo test data directory prepended.
-    pub fn data_path(path: &str) -> PathBuf {
-        let mut result = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    pub fn data_path(path: &str) -> std::path::PathBuf {
+        let mut result = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         result.push("tests");
         result.push("config-test-data");
         result.push(path);
@@ -278,8 +257,7 @@ mod tests {
     fn config_can_contain_anything() {
         // This...might not be the best behavior to go for.
         let config_path = test_support::data_path("flagrantly-invalid-yaml");
-        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        let config = Config::new(&options).unwrap();
+        let config = Config::new(Some(config_path)).unwrap();
         assert_eq!(config.rules(), 1);
     }
 
@@ -287,8 +265,7 @@ mod tests {
     fn config_can_be_empty() {
         // An empty config file is valid (albeit trivial) YAML and is
         // considered valid.
-        let options = test_support::options(Some("/dev/null"), None);
-        let config = Config::new(&options).unwrap();
+        let config = Config::new(Some(std::path::PathBuf::from("/dev/null"))).unwrap();
 
         assert!(config.default_policy.is_noadd());
         assert!(config.default_policy.is_nodelete());
@@ -299,8 +276,7 @@ mod tests {
     fn config_can_omit_default_policy() {
         // A config file without a default policy is valid.
         let config_path = test_support::data_path("config-without-default-policy");
-        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        let config = Config::new(&options).unwrap();
+        let config = Config::new(Some(config_path)).unwrap();
         assert_eq!(config.rules(), 5);
 
         assert!(config.default_policy.is_noadd());
@@ -309,51 +285,9 @@ mod tests {
     }
 
     #[test]
-    fn config_has_default_policy() {
-        // In case no configuration is provided at all, the Config
-        // struct is still well-defined.
-        let empty_options = test_support::options(None, None);
-        let unopinionated_config = Config::new(&empty_options).unwrap();
-        assert!(unopinionated_config.rules() == 1);
-        let policy = unopinionated_config.match_policy("");
-        assert!(policy.is_noadd());
-        assert!(policy.is_nodelete());
-        assert!(policy.is_nomodify());
-
-        // Tests that a default policy presented on the command-line
-        // takes precedence over a written default policy.
-        let config_path = test_support::data_path("config-with-default-and-extra-policy");
-        // Simulates an invocation in which "noadd" was given as the
-        // default policy. The referenced config file uses "ignore"
-        // ATOW, and the command-line "noadd" will win aganist it.
-        let default_policy_on_cli_options =
-            test_support::options(Some(config_path.to_str().unwrap()), Some("noadd"));
-        let noadd_is_default = Config::new(&default_policy_on_cli_options).unwrap();
-        assert!(noadd_is_default.rules() == 2);
-        assert!(noadd_is_default.match_policy("").is_noadd());
-        let kenobi = noadd_is_default.match_policy("hello/there/general-kenobi");
-        assert!(kenobi.is_noadd());
-        assert!(kenobi.is_nodelete());
-        assert!(kenobi.is_nomodify());
-
-        // Tests that a written default policy emerges absent explicit
-        // specification on the command-line.
-        let default_policy_in_yaml_options =
-            test_support::options(Some(config_path.to_str().unwrap()), None);
-        let ignore_is_default = Config::new(&default_policy_in_yaml_options).unwrap();
-        assert!(ignore_is_default.rules() == 2);
-        assert!(ignore_is_default.match_policy("").is_ignore());
-        let kenobi = noadd_is_default.match_policy("hello/there/general-kenobi");
-        assert!(kenobi.is_noadd());
-        assert!(kenobi.is_nodelete());
-        assert!(kenobi.is_nomodify());
-    }
-
-    #[test]
     fn config_might_not_have_specific_policies() {
         let config_path = test_support::data_path("config-without-specific-policies");
-        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        let config = Config::new(&options).unwrap();
+        let config = Config::new(Some(config_path)).unwrap();
         assert!(config.rules() == 1);
         assert!(config.match_policy("").is_nodelete());
     }
@@ -361,15 +295,13 @@ mod tests {
     #[test]
     fn config_policies_must_be_a_map() {
         let config_path = test_support::data_path("config-with-ill-formed-policies");
-        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        assert!(Config::new(&options).is_err());
+        assert!(Config::new(Some(config_path)).is_err());
     }
 
     #[test]
     fn match_default_policy() {
         let config_path = test_support::data_path("config-without-specific-policies");
-        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        let config = Config::new(&options).unwrap();
+        let config = Config::new(Some(config_path)).unwrap();
 
         // With only a default policy, this config has just 1 rule.
         assert_eq!(config.rules(), 1);
@@ -387,8 +319,7 @@ mod tests {
     #[test]
     fn match_nondefault_policies() {
         let config_path = test_support::data_path("config-with-several-policies");
-        let options = test_support::options(Some(config_path.to_str().unwrap()), None);
-        let config = Config::new(&options).unwrap();
+        let config = Config::new(Some(config_path)).unwrap();
 
         assert_eq!(config.rules(), 5);
 

@@ -3,7 +3,6 @@ use std::io::Write;
 use libzakopane::config::Config;
 use libzakopane::snapshot::Snapshot;
 use libzakopane::structs::ChecksumCliOptions;
-use libzakopane::structs::CompareCliOptions;
 use libzakopane::structs::ZakopaneError;
 
 const DEFAULT_POLICY_ARG_NAME: &'static str = "default-policy";
@@ -28,18 +27,20 @@ enum SubcommandData {
 // operational data. Can abort the program on error.
 fn compare_data_from(matches: &clap::ArgMatches) -> Result<SubcommandData, ZakopaneError> {
     // The two snapshot paths are required, so these are safe to unwrap.
-    let old_snapshot_path = matches.value_of(OLD_SNAPSHOT_PATH_ARG_NAME).unwrap();
-    let new_snapshot_path = matches.value_of(NEW_SNAPSHOT_PATH_ARG_NAME).unwrap();
-    let old_contents = libzakopane::helpers::ingest_file(old_snapshot_path)?;
-    let new_contents = libzakopane::helpers::ingest_file(new_snapshot_path)?;
+    let old_snapshot_path =
+        std::path::PathBuf::from(matches.value_of(OLD_SNAPSHOT_PATH_ARG_NAME).unwrap());
+    let new_snapshot_path =
+        std::path::PathBuf::from(matches.value_of(NEW_SNAPSHOT_PATH_ARG_NAME).unwrap());
+    let old_contents = libzakopane::helpers::ingest_file(&old_snapshot_path)?;
+    let new_contents = libzakopane::helpers::ingest_file(&new_snapshot_path)?;
 
-    let options = CompareCliOptions {
-        config_path: matches.value_of(CONFIG_FILE_ARG_NAME),
-        default_policy: matches.value_of(DEFAULT_POLICY_ARG_NAME),
+    let config_path = match matches.value_of(CONFIG_FILE_ARG_NAME) {
+        Some(str) => Some(std::path::PathBuf::from(str)),
+        None => None,
     };
 
     Ok(SubcommandData::Compare(CompareData {
-        config: Config::new(&options)?,
+        config: Config::new(config_path)?,
         old_snapshot: Snapshot::new(&old_contents)?,
         new_snapshot: Snapshot::new(&new_contents)?,
     }))
