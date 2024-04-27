@@ -2,10 +2,6 @@
 // ATOW a snapshot file is pretty much the output of the ``sha256sum''
 // command with three extra lines atop.
 
-use std::collections::HashMap;
-use std::result::Result;
-use std::string::String;
-
 use crate::structs::ZakopaneError;
 
 // Defines the number of lines preceding the actual checksum content.
@@ -14,11 +10,19 @@ const HEADER_LINES: usize = 3;
 // Defines the number of hex characters in a sha256sum.
 const CHECKSUM_CHARS: usize = 64;
 
+// Defines a zakopane snapshot, which maps paths to checksums.
+#[derive(Debug)]
+pub struct Snapshot {
+    contents: std::collections::HashMap<String, String>,
+}
+
 // Defines a valid zakopane snapshot header.
-const SNAPSHOT_HEADER_FOR_TESTING: &'static str = r#"zakopane: <some datestamp>
-zakopane: /home/kalvin
-# this line is typically empty but must be present
-"#;
+const SNAPSHOT_HEADER_FOR_TESTING: &str = indoc::indoc!(
+    r#"zakopane: <some datestamp>
+       zakopane: /home/kalvin
+       # this line is typically empty but must be present
+    "#
+);
 
 // Accepts a borrowed string representation of some zakopane
 // checksums, prepends the standard zakopane snapshot header to the
@@ -29,16 +33,10 @@ pub fn snapshot_string_for_testing(checksums: &str) -> String {
     snapshot
 }
 
-// Defines a zakopane snapshot, which maps paths to checksums.
-#[derive(Debug)]
-pub struct Snapshot {
-    contents: HashMap<String, String>,
-}
-
 // Borrows the string representation of a line in a zakopane snapshot
 // and returns sliced str's in a tuple of (checksum, path).
 fn parse_snapshot_line(line: &str) -> Result<(&str, &str), ZakopaneError> {
-    let bad_line = ZakopaneError::Snapshot(format!("malformed snapshot line: ``{}''", line));
+    let bad_line = ZakopaneError::Snapshot(format!("malformed snapshot line: ``{line}''"));
     // A snapshot line should consist of the checksum, two spaces, and a
     // non-empty pathname.
     if line.len() < CHECKSUM_CHARS + 3
@@ -64,7 +62,7 @@ impl Snapshot {
         // for human readers. zakopane doesn't care about this header.
         let mut header_drain: usize = HEADER_LINES;
 
-        let mut contents: HashMap<String, String> = HashMap::new();
+        let mut contents = std::collections::HashMap::<String, String>::new();
         for line in snapshot.lines() {
             if header_drain > 0 {
                 header_drain -= 1;
@@ -72,18 +70,15 @@ impl Snapshot {
             }
 
             let (checksum, path) = parse_snapshot_line(line)?;
-            if let Some(old_checksum) = contents.insert(path.to_string(), checksum.to_string()) {
-                return Err(ZakopaneError::Snapshot(format!(
-                    "path collision: {} (was already {}, is now {})",
-                    path, old_checksum, checksum
-                )));
+            if let Some(_old_checksum) = contents.insert(path.to_string(), checksum.to_string()) {
+                return Err(ZakopaneError::Snapshot(format!("path collision: {path}")));
             };
         }
 
         if header_drain > 0 {
-            return Err(ZakopaneError::Snapshot(String::from(
-                "truncated zakopane snapshot",
-            )));
+            return Err(ZakopaneError::Snapshot(
+                "truncated zakopane snapshot".to_string(),
+            ));
         }
         Ok(Snapshot { contents: contents })
     }
