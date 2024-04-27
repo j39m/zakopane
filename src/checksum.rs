@@ -113,9 +113,9 @@ fn checksum_task_send_result(
 fn checksum_task_impl(path: std::path::PathBuf) -> ChecksumResult {
     let mut hasher = crypto_hash::Hasher::new(crypto_hash::Algorithm::SHA256);
     let mut buffer: Vec<u8> = vec![0; READ_SIZE];
-    let mut file = std::fs::File::open(&path).map_err(ZakopaneError::Io)?;
+    let mut file = std::fs::File::open(&path)?;
     loop {
-        let read_bytes = file.read(&mut buffer).map_err(ZakopaneError::Io)?;
+        let read_bytes = file.read(&mut buffer)?;
         if read_bytes == 0 {
             let checksum = hasher
                 .finish()
@@ -125,9 +125,7 @@ fn checksum_task_impl(path: std::path::PathBuf) -> ChecksumResult {
                 .join("");
             return Ok(ChecksumWithPath::new(checksum, path));
         }
-        hasher
-            .write_all(&buffer[..read_bytes])
-            .map_err(ZakopaneError::Io)?;
+        hasher.write_all(&buffer[..read_bytes])?;
     }
 }
 
