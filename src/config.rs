@@ -174,7 +174,7 @@ impl Config {
     pub fn new(config_path: Option<std::path::PathBuf>) -> Result<Config, ZakopaneError> {
         let yaml_config: Option<Yaml> = match config_path {
             Some(path) => {
-                let config = crate::helpers::ingest_file(&path)?;
+                let config = crate::helpers::ingest_file(path)?;
                 read_yaml(&config)?
             }
             None => None,

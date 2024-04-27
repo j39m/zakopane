@@ -1,6 +1,3 @@
-// This module defines miscellaneous, non-specialized structs that can
-// appear anywhere in the crate.
-
 #[derive(Debug)]
 pub enum ZakopaneError {
     // Propagates I/O errors (e.g. from reading actual files).
@@ -24,45 +21,43 @@ impl std::fmt::Display for ZakopaneError {
     }
 }
 
-#[derive(Debug)]
-pub struct ChecksumCliOptions {
-    pub path: std::path::PathBuf,
-    pub output_path: std::path::PathBuf,
-    pub start_time: chrono::DateTime<chrono::offset::Local>,
-    pub max_tasks: usize,
+// TODO(j39m): Figure out if this best goes here or in `main.rs`.
+//use clap::Parser;
 
-    // User-defined value for what constitutes a "big file" for which
-    // the checksum dispatcher will force single-threaded digest
-    // calculation.
-    pub big_file_bytes: Option<u64>,
+#[derive(clap::Parser)]
+#[command(name = clap::crate_name!(), version = clap::crate_version!(), about = "take checksums")]
+pub struct Cli {
+    #[command(subcommand)]
+    pub subcommand: Subcommand,
 }
 
-impl ChecksumCliOptions {
-    pub fn new(
-        path: std::path::PathBuf,
-        optional_output_path: Option<std::path::PathBuf>,
-        max_tasks: usize,
-        big_file_bytes: Option<u64>,
-    ) -> Result<Self, ZakopaneError> {
-        if max_tasks < 1 {
-            return Err(ZakopaneError::CommandLine(format!(
-                "invalid task cap: ``{}''",
-                max_tasks
-            )));
-        }
+#[derive(clap::Subcommand)]
+pub enum Subcommand {
+    Checksum(ChecksumArgs),
+    Compare(CompareArgs),
+}
 
-        let start_time = chrono::offset::Local::now();
-        let output_path = match optional_output_path {
-            Some(path) => path,
-            None => std::path::PathBuf::from(start_time.format("%Y-%m-%d-%H%M.txt").to_string()),
-        };
+#[derive(clap::Args)]
+pub struct ChecksumArgs {
+    #[arg(help = "target directory")]
+    pub target: std::path::PathBuf,
+    #[arg(short, help = "simultaneous checksum tasks cap", default_value_t = 8)]
+    pub jmax: u32,
+    #[arg(short, help = "output path")]
+    pub output_path: std::path::PathBuf,
+    #[arg(
+        long,
+        help = "byte threshold for which single-threaded checksumming is forced"
+    )]
+    pub big_file_bytes: Option<usize>,
+}
 
-        Ok(Self {
-            path,
-            output_path,
-            start_time,
-            max_tasks,
-            big_file_bytes,
-        })
-    }
+#[derive(clap::Args)]
+pub struct CompareArgs {
+    #[arg()]
+    pub old_snapshot: std::path::PathBuf,
+    #[arg()]
+    pub new_snapshot: std::path::PathBuf,
+    #[arg(short)]
+    pub config: Option<std::path::PathBuf>,
 }

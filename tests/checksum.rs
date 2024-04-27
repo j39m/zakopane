@@ -2,12 +2,17 @@ use indoc::indoc;
 
 // Returns a `ChecksumCliOptions` targeting the cargo test data
 // directory for a checksum run.
-fn options_for_testing(path: &str) -> libzakopane::structs::ChecksumCliOptions {
+fn options_for_testing(path: &str) -> libzakopane::structs::ChecksumArgs {
     let mut result = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     result.push("tests");
     result.push("checksum-test-data");
     result.push(path);
-    libzakopane::structs::ChecksumCliOptions::new(result, None, 8, None).unwrap()
+    libzakopane::structs::ChecksumArgs {
+        target: result,
+        jmax: 8,
+        output_path: std::path::PathBuf::new(),
+        big_file_bytes: None,
+    }
 }
 
 #[test]
