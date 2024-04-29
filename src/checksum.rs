@@ -41,7 +41,7 @@ impl ChecksumTaskDispatcherData {
         sender: tokio::sync::mpsc::Sender<ChecksumResult>,
     ) -> Self {
         Self {
-            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(args.jmax as usize)),
+            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(args.max_threads as usize)),
             args,
             spawn_counter,
             sender,
@@ -91,7 +91,7 @@ async fn get_semaphore_permit(
         context
             .semaphore
             .clone()
-            .acquire_many_owned(context.args.jmax)
+            .acquire_many_owned(context.args.max_threads)
             .await
             .unwrap()
     } else {
@@ -171,7 +171,7 @@ async fn collector_task(
 async fn spawn_collector(
     args: crate::structs::ChecksumArgs,
 ) -> (ChecksumTaskDispatcherData, ChecksumTaskJoinHandle) {
-    let (sender, receiver) = tokio::sync::mpsc::channel(args.jmax as usize);
+    let (sender, receiver) = tokio::sync::mpsc::channel(args.max_threads as usize);
     let spawn_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let join_handle = tokio::task::spawn(collector_task(receiver, spawn_counter.clone()));
     (

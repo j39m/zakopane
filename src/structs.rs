@@ -30,8 +30,12 @@ pub enum Subcommand {
 pub struct ChecksumArgs {
     #[arg(help = "target directory")]
     pub target: std::path::PathBuf,
-    #[arg(short, help = "simultaneous checksum tasks cap", default_value_t = 8)]
-    pub jmax: u32,
+    #[arg(
+        short = 'j',
+        help = "simultaneous checksum tasks cap",
+        default_value_t = 8
+    )]
+    pub max_threads: u32,
     #[arg(short, help = "output path")]
     pub output_path: std::path::PathBuf,
     #[arg(

@@ -9,7 +9,7 @@ fn options_for_testing(path: &str) -> libzakopane::structs::ChecksumArgs {
     result.push(path);
     libzakopane::structs::ChecksumArgs {
         target: result,
-        jmax: 8,
+        max_threads: 8,
         output_path: std::path::PathBuf::new(),
         big_file_bytes: None,
     }
